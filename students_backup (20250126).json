@@ -1,0 +1,114 @@
+[
+  {
+    "id": "student_1737870466123",
+    "name": "Evie",
+    "classDays": [
+      "Friday"
+    ],
+    "sessionLength": 1.5,
+    "hourlyRate": 1200,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870444731",
+    "name": "Cody",
+    "classDays": [
+      "Thursday"
+    ],
+    "sessionLength": 1,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870486067",
+    "name": "Jacky Wu",
+    "classDays": [
+      "Saturday"
+    ],
+    "sessionLength": 1.5,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870277572",
+    "name": "Enzo",
+    "classDays": [
+      "Tuesday"
+    ],
+    "sessionLength": 1.5,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870296459",
+    "name": "Ian Lin",
+    "classDays": [
+      "Tuesday"
+    ],
+    "sessionLength": 2,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": -300
+  },
+  {
+    "id": "student_1737870550492",
+    "name": "Ian Chen",
+    "classDays": [
+      "Saturday"
+    ],
+    "sessionLength": 1.5,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870429388",
+    "name": "Mike Hsiao",
+    "classDays": [
+      "Thursday"
+    ],
+    "sessionLength": 1.5,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870501859",
+    "name": "Irene Hsiao",
+    "classDays": [
+      "Saturday"
+    ],
+    "sessionLength": 2,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737869045117",
+    "name": "Jesse Liu",
+    "classDay": "Monday, Saturday",
+    "sessionLength": 1.5,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0,
+    "classDays": [
+      "Monday",
+      "Saturday"
+    ]
+  },
+  {
+    "id": "student_1737870153853",
+    "name": "Ian Liu",
+    "classDays": [
+      "Monday"
+    ],
+    "sessionLength": 1.5,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  },
+  {
+    "id": "student_1737870340779",
+    "name": "Rio",
+    "classDays": [
+      "Tuesday"
+    ],
+    "sessionLength": 2,
+    "hourlyRate": 1100,
+    "additionalChargeModifier": 0
+  }
+]

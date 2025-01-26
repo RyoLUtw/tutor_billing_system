@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>SPA Tutor Session Management</title>
+  <!-- Load any styles or libraries you need here -->
+  <style>
+    /* Quick styling for navigation */
+    nav ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      gap: 10px;
+    }
+    nav ul li {
+      display: inline-block;
+    }
+    nav ul li a {
+      text-decoration: none;
+      padding: 6px 12px;
+      background-color: #ddd;
+    }
+    nav ul li a:hover {
+      background-color: #bbb;
+    }
+
+    /* A minimal style for the "main" area */
+    #app {
+      margin: 20px;
+    }
+
+    /* Position the popup (if used in monthlyView, etc.) absolutely */
+    /* #cancellationPopup or other popups can also get their own styling. */
+  </style>
+
+  <!-- Optionally load html2canvas or other libs here if needed globally -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+
+<body>
+  <!-- Simple Navigation Menu -->
+  <nav>
+    <ul>
+      <li><a href="#/profile">Student Profile</a></li>
+      <li><a href="#/parent">Parent Profile</a></li>
+      <li><a href="#/monthly">Schedule Management</a></li>
+      <li><a href="#/teacher">Teacher Salary</a></li>
+     
+      <li><a href="#/printbill">Print Bill</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main container where views are rendered -->
+  <main id="app"></main>
+
+  <!-- Load each view script -->
+  <script src="studentProfileView.js"></script>
+  <script src="monthlyView.js"></script>
+  <script src="teacherView.js"></script>
+  <script src="parentProfileView.js"></script>
+  <script src="printingBillView.js"></script>
+
+  <!-- Finally load the router/app logic -->
+  <script src="app.js"></script>
+</body>
+</html>

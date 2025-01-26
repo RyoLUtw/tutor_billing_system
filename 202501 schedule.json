@@ -1,0 +1,332 @@
+{
+  "2025-01": {
+    "student_1737869045117": [
+      {
+        "date": "2025/01/04",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/06",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/11",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/13",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/18",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/20",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/25",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/27",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870153853": [
+      {
+        "date": "2025/01/06",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/13",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/20",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/27",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870277572": [
+      {
+        "date": "2025/01/07",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/14",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/21",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/28",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870296459": [
+      {
+        "date": "2025/01/07",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/14",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/21",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/28",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870429388": [
+      {
+        "date": "2025/01/02",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/09",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/16",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/23",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/30",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870340779": [
+      {
+        "date": "2025/01/07",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/14",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/21",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/28",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870444731": [
+      {
+        "date": "2025/01/02",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/09",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/16",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/23",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/30",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870466123": [
+      {
+        "date": "2025/01/03",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/10",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/17",
+        "canceled": true,
+        "violation": true,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/24",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/31",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870486067": [
+      {
+        "date": "2025/01/04",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/11",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/18",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/25",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870501859": [
+      {
+        "date": "2025/01/04",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/11",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/18",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/25",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      }
+    ],
+    "student_1737870550492": [
+      {
+        "date": "2025/01/04",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/11",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/18",
+        "canceled": true,
+        "violation": false,
+        "makeup": null
+      },
+      {
+        "date": "2025/01/25",
+        "canceled": false,
+        "violation": false,
+        "makeup": null
+      }
+    ]
+  }
+}

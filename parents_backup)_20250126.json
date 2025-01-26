@@ -1,0 +1,69 @@
+[
+  {
+    "id": "parent_1737875863650",
+    "name": "美瑩",
+    "children": [
+      "student_1737869045117",
+      "student_1737870153853",
+      "student_1737870340779"
+    ],
+    "billModifierName": "",
+    "billModifierValue": 0
+  },
+  {
+    "id": "parent_1737875903362",
+    "name": "Winnie",
+    "children": [
+      "student_1737870429388",
+      "student_1737870501859"
+    ],
+    "billModifierName": "",
+    "billModifierValue": 0
+  },
+  {
+    "id": "parent_1737875933834",
+    "name": "Vivian",
+    "children": [
+      "student_1737870550492"
+    ],
+    "billModifierName": "",
+    "billModifierValue": 0
+  },
+  {
+    "id": "parent_1737875952705",
+    "name": "Jacky's Mom",
+    "children": [
+      "student_1737870486067"
+    ],
+    "billModifierName": "",
+    "billModifierValue": 0
+  },
+  {
+    "id": "parent_1737875962306",
+    "name": "Sophia",
+    "children": [
+      "student_1737870277572",
+      "student_1737870296459"
+    ],
+    "billModifierName": "停車費",
+    "billModifierValue": -300
+  },
+  {
+    "id": "parent_1737875979914",
+    "name": "Cody",
+    "children": [
+      "student_1737870444731"
+    ],
+    "billModifierName": "",
+    "billModifierValue": 0
+  },
+  {
+    "id": "parent_1737876015689",
+    "name": "Angela",
+    "children": [
+      "student_1737870466123"
+    ],
+    "billModifierName": "",
+    "billModifierValue": 0
+  }
+]
