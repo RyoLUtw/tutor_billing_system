@@ -51,6 +51,7 @@ function router() {
     // teacherView might need students, monthlySchedules, salaryReviews, etc.
     teacherView.render(main, {
       students,
+      monthlySchedules: monthlySchedulesByMonth,
       salaryReviews
     });
   }
