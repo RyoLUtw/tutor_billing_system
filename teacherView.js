@@ -1,6 +1,7 @@
 // views/teacherView.js
 const teacherView = {
   render: function (rootElement, { students, monthlySchedules, salaryReviews }) {
+    // 1) Create the container
     const container = document.createElement('div');
     container.innerHTML = `
       <h1>Teacher's Salary Review</h1>
@@ -24,70 +25,99 @@ const teacherView = {
     `;
     rootElement.appendChild(container);
 
+    // 2) Grab references
     const reviewTableBody = container.querySelector('#reviewTable tbody');
     const totalExpectedDisplay = container.querySelector('#totalExpectedDisplay');
     const totalActualDisplay = container.querySelector('#totalActualDisplay');
     const overallRatioDisplay = container.querySelector('#overallRatioDisplay');
     const saveSalaryReviewBtn = container.querySelector('#saveSalaryReviewBtn');
 
-    // For demonstration, let’s compute “expected” vs. “actual” on the fly.
-    // Actual logic depends on how you store monthlySchedules or final charges.
-    let totalExpected = 0;
-    let totalActual = 0;
+    // 3) We'll accumulate data for each student (scheduled, canceled, violation, etc.)
+    // Then compute expected vs. actual
+    let totalExpectedAll = 0;
+    let totalActualAll = 0;
 
+    // For each student, gather schedule data across all months in monthlySchedules
     students.forEach(student => {
-      // Hypothetical approach:
-      //  - Expected = hourlyRate * sessionLength * totalPossibleClasses + additionalChargeModifier
-      //  - Actual = you must incorporate cancellations and violation fees from monthlySchedules
-      // For a quick demo, let’s just do a random example:
-      const randomScheduledCount = 8;  // e.g., 8 possible classes
-      const randomCanceledCount = 2;   // e.g., 2 canceled
-      const randomViolations = 1;      // e.g., 1 violation
-      
-      const expectedCharge = (student.hourlyRate * student.sessionLength * randomScheduledCount) 
-                             + student.additionalChargeModifier;
-      const actualCharge = (student.hourlyRate * student.sessionLength * (randomScheduledCount - randomCanceledCount)) 
-                           + 500 * randomViolations 
-                           + student.additionalChargeModifier;
+      // We'll accumulate across all months
+      let totalScheduled = 0;   // total # of classes (length of schedule array)
+      let totalCanceled = 0;    // how many are canceled
+      let totalViolation = 0;   // how many have violation == true
+      let totalMakeup = 0;      // how many have a non-null "makeup"
 
-      const ratio = expectedCharge ? (actualCharge / expectedCharge) * 100 : 0;
-      
-      totalExpected += expectedCharge;
-      totalActual += actualCharge;
+      // 4) Loop through every "YYYY-MM" in monthlySchedules
+      for (const yearMonth in monthlySchedules) {
+        const studentMap = monthlySchedules[yearMonth];
+        // If this student has a schedule for that month:
+        if (studentMap[student.id]) {
+          const schedule = studentMap[student.id];
+          totalScheduled += schedule.length;
+          // canceled
+          totalCanceled += schedule.filter(i => i.canceled).length;
+          // violation
+          totalViolation += schedule.filter(i => i.violation).length;
+          // makeup
+          totalMakeup += schedule.filter(i => i.makeup !== null).length;
+        }
+      }
 
-      // Build table row
+      // 5) Now compute expected vs. actual
+      // Expected = (hourlyRate * sessionLength * totalScheduled) + additionalChargeModifier
+      const expected = (student.hourlyRate * student.sessionLength * totalScheduled)
+                       + student.additionalChargeModifier;
+
+      // Actual = (hourlyRate * sessionLength * (totalScheduled - totalCanceled + totalMakeup))
+      //        + (500 * totalViolation)
+      //        + additionalChargeModifier
+      const actual = (student.hourlyRate * student.sessionLength * (totalScheduled - totalCanceled + totalMakeup))
+                     + (500 * totalViolation)
+                     + student.additionalChargeModifier;
+
+      // Ratio
+      const ratio = (expected !== 0) ? (actual / expected) * 100 : 0;
+
+      // 6) Accumulate totals
+      totalExpectedAll += expected;
+      totalActualAll += actual;
+
+      // 7) Build a row
       const row = document.createElement('tr');
       row.innerHTML = `
         <td>${student.name}</td>
-        <td>${expectedCharge.toFixed(2)}</td>
-        <td>${actualCharge.toFixed(2)}</td>
+        <td>${expected.toFixed(2)}</td>
+        <td>${actual.toFixed(2)}</td>
         <td>${ratio.toFixed(2)}</td>
       `;
       reviewTableBody.appendChild(row);
     });
 
-    totalExpectedDisplay.textContent = totalExpected.toFixed(2);
-    totalActualDisplay.textContent = totalActual.toFixed(2);
-    overallRatioDisplay.textContent = totalExpected
-      ? ((totalActual / totalExpected) * 100).toFixed(2)
-      : '0';
+    // 8) Fill in total/overall
+    totalExpectedDisplay.textContent = totalExpectedAll.toFixed(2);
+    totalActualDisplay.textContent = totalActualAll.toFixed(2);
+    const overallRatio = (totalExpectedAll !== 0)
+      ? (totalActualAll / totalExpectedAll) * 100
+      : 0;
+    overallRatioDisplay.textContent = overallRatio.toFixed(2);
 
-    // Save Salary Review as JSON
+    // 9) Save Salary Review as JSON
     saveSalaryReviewBtn.addEventListener('click', () => {
       const now = new Date();
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
+      
+      // You could store each student's detail too, but let's keep it simple
       const reviewData = {
         date: `${year}-${month}-01`,
-        totalExpected,
-        totalActual,
-        overallRatio: overallRatioDisplay.textContent
-        // you can also store each student's charges if you want
+        totalExpected: totalExpectedAll.toFixed(2),
+        totalActual: totalActualAll.toFixed(2),
+        overallRatio: overallRatio.toFixed(2)
+        // you can also push each student's breakdown if you want
       };
 
-      // For a real app, you might store in `salaryReviews` array
+      // If you want to store in salaryReviews array:
       // salaryReviews.push(reviewData);
 
+      // Then let the user download
       const dataStr = JSON.stringify(reviewData, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
