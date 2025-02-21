@@ -1,28 +1,25 @@
 // views/monthlyView.js
 const monthlyView = {
-  // We now expect an object with { students, parents } so we can build a parent->child map
-  render: function (rootElement, { students, parents }) {
-    //
+  render: function (rootElement, { students }) {
     // 1) Load existing monthly schedules from localStorage (if any)
-    //
     const schedulesData = localStorage.getItem('monthlySchedulesByMonth');
     let monthlySchedulesByMonth = schedulesData ? JSON.parse(schedulesData) : {};
     /*
-       The structure is:
+       Expected structure (unchanged):
        {
          "2025-01": {
-           "student_abc": [ { date, canceled, violation, makeup }, ... ],
+           "student_abc": [ 
+             { date, canceled, violation, makeup, "time modified": <number> }, 
+             ... 
+           ],
            "student_xyz": [ ... ]
          },
-         "2025-02": {
-           ...
-         }
+         "2025-02": { ... }
        }
     */
 
-    //
     // 2) Build our DOM
-    //
+    // (Note: temporary modifier input and print buttons removed)
     const container = document.createElement('div');
     container.innerHTML = `
       <h1>Monthly Charge Summary</h1>
@@ -44,30 +41,26 @@ const monthlyView = {
             <th>Date</th>
             <th>Cancellation Status</th>
             <th>Make-up Class</th>
+            <th>調整時數</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
 
-      <!-- Summary section above total charge -->
+      <!-- Summary section without temporary modifier input -->
       <h2>Summary</h2>
       <div>
         <p>Scheduled Classes: <span id="scheduledCountDisplay">0</span></p>
         <p>Cancelled Classes: <span id="canceledCountDisplay">0</span></p>
         <p>Make-Up Classes: <span id="makeupCountDisplay">0</span></p>
         <p>Profile Modifier: <span id="profileModifierDisplay">0</span></p>
-        <label for="tempModifierInput">Temporary Modifier:</label>
-        <input type="number" id="tempModifierInput" value="0" />
       </div>
 
       <h3>Total Charge: <span id="totalChargeDisplay">0</span></h3>
       <button id="updateChargeBtn">Update Charge</button>
       
-      <div>
-        <button id="printIndividualBtn">Print This Student’s Charge</button>
-        <button id="printAllBtn">Batch Print All Students</button>
-      </div>
+      <!-- Removed "Print This Student’s Charge" and "Batch Print All Students" buttons -->
 
       <hr />
 
@@ -80,16 +73,13 @@ const monthlyView = {
       </div>
 
       <!-- Popup for marking cancellation -->
-      <div 
-        id="cancellationPopup" 
-        style="
+      <div id="cancellationPopup" style="
           display:none; 
           position:absolute; 
           background-color:#eee; 
           border:1px solid #000; 
           padding:10px;
-          z-index:9999;
-        ">
+          z-index:9999;">
         <h3>Cancellation Details</h3>
         <label>
           Violation of Cancellation Policy?
@@ -111,37 +101,39 @@ const monthlyView = {
         <button id="saveCancellationBtn">Save</button>
         <button id="closePopupBtn">Close</button>
       </div>
+
+      <!-- New Popup for modifying session time -->
+      <div id="timeModifierPopup" style="
+          display:none; 
+          position:absolute; 
+          background-color:#eef; 
+          border:1px solid #000; 
+          padding:10px;
+          z-index:9999;">
+        <h3>Modify Session Time (hours)</h3>
+        <input type="number" id="timeModifierInput" step="0.1" value="0" />
+        <br/>
+        <button id="saveTimeModifierBtn">Save</button>
+        <button id="cancelTimeModifierBtn">Cancel</button>
+      </div>
     `;
     rootElement.appendChild(container);
 
-    // References to DOM elements
+    // 3) References
     const studentSelect = container.querySelector('#studentSelect');
     const monthInput = container.querySelector('#monthInput');
     const yearInput = container.querySelector('#yearInput');
     const datesTableBody = container.querySelector('#datesTable tbody');
-    
-    // Summary Elements
     const scheduledCountDisplay = container.querySelector('#scheduledCountDisplay');
     const canceledCountDisplay = container.querySelector('#canceledCountDisplay');
     const makeupCountDisplay = container.querySelector('#makeupCountDisplay');
     const profileModifierDisplay = container.querySelector('#profileModifierDisplay');
-    const tempModifierInput = container.querySelector('#tempModifierInput');
-    
-    // Total Charge
     const totalChargeDisplay = container.querySelector('#totalChargeDisplay');
     const updateChargeBtn = container.querySelector('#updateChargeBtn');
-
-    // Print Buttons
-    const printIndividualBtn = container.querySelector('#printIndividualBtn');
-    const printAllBtn = container.querySelector('#printAllBtn');
-
-    // Backup/Restore/Clear
     const downloadJsonBtn = container.querySelector('#downloadJsonBtn');
     const uploadJsonBtn = container.querySelector('#uploadJsonBtn');
     const uploadJsonInput = container.querySelector('#uploadJsonInput');
     const clearLocalStorageBtn = container.querySelector('#clearLocalStorageBtn');
-
-    // Cancellation popup
     const cancellationPopup = container.querySelector('#cancellationPopup');
     const violationCheckbox = container.querySelector('#violationCheckbox');
     const makeupCheckbox = container.querySelector('#makeupCheckbox');
@@ -150,69 +142,34 @@ const monthlyView = {
     const makeupTimeInput = container.querySelector('#makeupTimeInput');
     const saveCancellationBtn = container.querySelector('#saveCancellationBtn');
     const closePopupBtn = container.querySelector('#closePopupBtn');
+    const timeModifierPopup = container.querySelector('#timeModifierPopup');
+    const timeModifierInput = container.querySelector('#timeModifierInput');
+    const saveTimeModifierBtn = container.querySelector('#saveTimeModifierBtn');
+    const cancelTimeModifierBtn = container.querySelector('#cancelTimeModifierBtn');
 
-    // The array of classes for the currently selected student, in the chosen month
-    let currentSchedule = [];
-    let activeIndex = null; // which row is being edited in the popup
+    // We'll keep the schedule in the original structure (an array) so that old JSON works.
+    let currentSchedule = null; 
 
-    // --------------------------------------------------
-    // 1) Populate student dropdown in PARENT order
-    // --------------------------------------------------
-
-    // Build a quick map: parentId -> parent object
-    // Also, childId -> parentId so we can find each student's parent
-    const parentMap = {};
-    parents.forEach(p => {
-      parentMap[p.id] = p;
-    });
-
-    // Build a dictionary: studentId -> parentName (if we have an ID link)
-    // 1) In parentProfileView, we store p.children = array of student IDs
-    //    So let's invert that to find each student's parentId
-    const studentParentName = {};
-    parents.forEach(parentObj => {
-      (parentObj.children || []).forEach(childId => {
-        // childId is the student's .id
-        studentParentName[childId] = parentObj.name;
-      });
-    });
-
-    // Now sort students by parentName from studentParentName
-    students.sort((a, b) => {
-      const aParent = studentParentName[a.id] || ''; 
-      const bParent = studentParentName[b.id] || '';
-      // Compare by parent's name
-      return aParent.localeCompare(bParent);
-    });
-
-    // Now create the <option> elements in sorted order
+    // 4) Populate student dropdown
     students.forEach((s, i) => {
       const option = document.createElement('option');
       option.value = i;
-      // We'll show parent's name in parentheses, if it exists
-      const parentName = studentParentName[s.id] || 'No Parent';
-      option.textContent = `${s.name} (${parentName})`;
+      option.textContent = s.name;
       studentSelect.appendChild(option);
     });
 
-    // --------------------------------------------------
-    // 2) Default month/year to today's date
-    // --------------------------------------------------
-    const now = new Date();
-    monthInput.value = now.getMonth() + 1;
-    yearInput.value = now.getFullYear();
+    // 5) Default month/year to today
+    const today = new Date();
+    monthInput.value = today.getMonth() + 1;
+    yearInput.value = today.getFullYear();
 
-    // --------------------------------------------------
-    // Helper: day string -> number
-    // --------------------------------------------------
+    // 6) Helper: day string -> number
     function getDayNumber(dayString) {
       const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       return days.findIndex(d => d.toLowerCase() === dayString.toLowerCase());
     }
 
-    // --------------------------------------------------
-    // Generate a new schedule for a student's classDays, if none is stored
-    // --------------------------------------------------
+    // 7) Generate a new schedule array for a student; then return it (old JSON structure)
     function generateSchedule(student, yearMonth) {
       if (!Array.isArray(student.classDays) || student.classDays.length === 0) {
         return [];
@@ -220,12 +177,10 @@ const monthlyView = {
       const [yy, mm] = yearMonth.split('-');
       const monthNum = parseInt(mm, 10);
       const yearNum = parseInt(yy, 10);
-
       let result = [];
       student.classDays.forEach(dayStr => {
         const dayNum = getDayNumber(dayStr);
-        if (dayNum < 0) return; // skip invalid
-
+        if (dayNum < 0) return;
         let d = new Date(yearNum, monthNum - 1, 1);
         while (d.getMonth() === (monthNum - 1)) {
           if (d.getDay() === dayNum) {
@@ -236,7 +191,8 @@ const monthlyView = {
               date: `${y}/${m}/${dd}`,
               canceled: false,
               violation: false,
-              makeup: null
+              makeup: null,
+              "time modified": 0
             });
           }
           d.setDate(d.getDate() + 1);
@@ -246,9 +202,7 @@ const monthlyView = {
       return result;
     }
 
-    // --------------------------------------------------
-    // Load or generate the schedule for the selected student + yearMonth
-    // --------------------------------------------------
+    // 8) Load or generate schedule for selected student and update UI.
     function loadOrGenerateSchedule() {
       const selectedIndex = studentSelect.value;
       if (selectedIndex === '') {
@@ -265,90 +219,85 @@ const monthlyView = {
         recalcCharge();
         return;
       }
-
       const student = students[selectedIndex];
       const yearMonth = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
-
-      // Create object for that month-year if doesn't exist
       if (!monthlySchedulesByMonth[yearMonth]) {
         monthlySchedulesByMonth[yearMonth] = {};
       }
-      // If we already have a schedule for this student, load it
       if (monthlySchedulesByMonth[yearMonth][student.id]) {
         currentSchedule = monthlySchedulesByMonth[yearMonth][student.id];
       } else {
-        // Otherwise generate a new schedule
         currentSchedule = generateSchedule(student, yearMonth);
-        // Store it
         monthlySchedulesByMonth[yearMonth][student.id] = currentSchedule;
         saveMonthlySchedules();
       }
-
       renderTable();
       recalcCharge();
     }
 
-    // --------------------------------------------------
-    // Save entire monthlySchedulesByMonth to localStorage
-    // --------------------------------------------------
+    // 9) Save schedule to localStorage (old structure unchanged)
     function saveMonthlySchedules() {
       localStorage.setItem('monthlySchedulesByMonth', JSON.stringify(monthlySchedulesByMonth));
     }
+    function persistCurrentSchedule() {
+      const selectedIndex = studentSelect.value;
+      if (selectedIndex === '') return;
+      const chosenMonth = parseInt(monthInput.value, 10);
+      const chosenYear = parseInt(yearInput.value, 10);
+      if (!chosenMonth || !chosenYear) return;
+      const student = students[selectedIndex];
+      const yearMonth = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
+      if (!monthlySchedulesByMonth[yearMonth]) {
+        monthlySchedulesByMonth[yearMonth] = {};
+      }
+      // Save currentSchedule (which already has per-session "time modified")
+      monthlySchedulesByMonth[yearMonth][student.id] = currentSchedule;
+      saveMonthlySchedules();
+    }
 
-    // --------------------------------------------------
-    // Render the table for currentSchedule
-    // --------------------------------------------------
+    // 10) Render schedule table (using currentSchedule array)
     function renderTable() {
       datesTableBody.innerHTML = '';
       currentSchedule.forEach((item, index) => {
         const row = document.createElement('tr');
-        
         // Date
         const dateCell = document.createElement('td');
         dateCell.textContent = item.date;
         row.appendChild(dateCell);
-
-        // Cancellation Status
+        // Cancellation Status remains as before
         const cancelStatusCell = document.createElement('td');
         if (item.canceled) {
-          // If also a violation, display "Canceled (compensated)"
-          if (item.violation) {
-            cancelStatusCell.textContent = 'Canceled (compensated)';
-          } else {
-            cancelStatusCell.textContent = 'Canceled';
-          }
+          cancelStatusCell.textContent = item.violation ? 'Canceled (compensated)' : 'Canceled';
         } else {
           cancelStatusCell.textContent = 'Scheduled';
         }
         row.appendChild(cancelStatusCell);
-
         // Make-up Class
         const makeupCell = document.createElement('td');
-        if (item.makeup) {
-          makeupCell.textContent = `${item.makeup.date} ${item.makeup.time}`;
-        } else {
-          makeupCell.textContent = 'N/A';
-        }
+        makeupCell.textContent = item.makeup ? `${item.makeup.date} ${item.makeup.time}` : 'N/A';
         row.appendChild(makeupCell);
-
-        // Actions
+        // New: Time Modified column
+        const timeModCell = document.createElement('td');
+        timeModCell.textContent = item["time modified"] !== undefined ? item["time modified"] : 0;
+        row.appendChild(timeModCell);
+        // Actions: Only include "Mark Cancelled", "Unmark Cancelled", and "Modify Time"
         const actionCell = document.createElement('td');
-
-        // Mark Cancelled button
         const cancelBtn = document.createElement('button');
         cancelBtn.textContent = 'Mark Cancelled';
-        // Pass the click event to position the popup near the cursor
         cancelBtn.addEventListener('click', (evt) => openCancellationPopup(index, evt));
         actionCell.appendChild(cancelBtn);
-
-        // Unmark Cancelled button
         const unmarkBtn = document.createElement('button');
         unmarkBtn.textContent = 'Unmark Cancelled';
         unmarkBtn.style.marginLeft = '5px';
         unmarkBtn.addEventListener('click', () => unmarkCancelled(index));
         actionCell.appendChild(unmarkBtn);
+        // New: Modify Time button
+        const modifyBtn = document.createElement('button');
+        modifyBtn.textContent = 'Modify Time';
+        modifyBtn.style.marginLeft = '5px';
+        modifyBtn.addEventListener('click', (evt) => openTimeModifierPopup(index, evt));
+        actionCell.appendChild(modifyBtn);
 
-        // Show/hide buttons depending on canceled state
         if (item.canceled) {
           cancelBtn.disabled = true;
           unmarkBtn.disabled = false;
@@ -356,20 +305,15 @@ const monthlyView = {
           cancelBtn.disabled = false;
           unmarkBtn.disabled = true;
         }
-
         row.appendChild(actionCell);
         datesTableBody.appendChild(row);
       });
     }
 
-    // --------------------------------------------------
-    // "Mark Cancelled" popup
-    // --------------------------------------------------
+    // 11) "Mark Cancelled" popup logic
     function openCancellationPopup(index, evt) {
-      // Position the popup near the cursor
       cancellationPopup.style.left = (evt.clientX + 10) + 'px';
       cancellationPopup.style.top = (evt.clientY + 10) + 'px';
-
       activeIndex = index;
       const data = currentSchedule[index];
       violationCheckbox.checked = data.violation;
@@ -384,21 +328,13 @@ const monthlyView = {
       makeupDetails.style.display = makeupCheckbox.checked ? 'block' : 'none';
       cancellationPopup.style.display = 'block';
     }
-
-    makeupCheckbox.addEventListener('change', () => {
-      makeupDetails.style.display = makeupCheckbox.checked ? 'block' : 'none';
-    });
-
     saveCancellationBtn.addEventListener('click', () => {
       if (activeIndex === null) return;
       const data = currentSchedule[activeIndex];
       data.canceled = true;
       data.violation = violationCheckbox.checked;
       if (makeupCheckbox.checked) {
-        data.makeup = {
-          date: makeupDateInput.value,
-          time: makeupTimeInput.value
-        };
+        data.makeup = { date: makeupDateInput.value, time: makeupTimeInput.value };
       } else {
         data.makeup = null;
       }
@@ -407,18 +343,11 @@ const monthlyView = {
       recalcCharge();
       closePopup();
     });
-
-    // 2) FIX “Close” button to hide popup
     closePopupBtn.addEventListener('click', closePopup);
-
     function closePopup() {
       cancellationPopup.style.display = 'none';
       activeIndex = null;
     }
-
-    // --------------------------------------------------
-    // Unmark Cancelled
-    // --------------------------------------------------
     function unmarkCancelled(index) {
       const data = currentSchedule[index];
       data.canceled = false;
@@ -429,9 +358,33 @@ const monthlyView = {
       recalcCharge();
     }
 
-    // --------------------------------------------------
-    // Recompute the summary + total charge
-    // --------------------------------------------------
+    // 12) New: "Modify Time" popup logic
+    let timeModifierIndex = null;
+    function openTimeModifierPopup(index, evt) {
+      timeModifierPopup.style.left = (evt.clientX + 10) + 'px';
+      timeModifierPopup.style.top = (evt.clientY + 10) + 'px';
+      timeModifierIndex = index;
+      const currentVal = currentSchedule[index]["time modified"];
+      timeModifierInput.value = currentVal !== undefined ? currentVal : 0;
+      timeModifierPopup.style.display = 'block';
+    }
+    saveTimeModifierBtn.addEventListener('click', () => {
+      if (timeModifierIndex === null) return;
+      const newVal = parseFloat(timeModifierInput.value) || 0;
+      currentSchedule[timeModifierIndex]["time modified"] = newVal;
+      persistCurrentSchedule();
+      renderTable();
+      recalcCharge();
+      timeModifierPopup.style.display = 'none';
+      timeModifierIndex = null;
+    });
+    cancelTimeModifierBtn.addEventListener('click', () => {
+      timeModifierPopup.style.display = 'none';
+      timeModifierIndex = null;
+    });
+
+    // 13) Recompute summary and total charge.
+    // Here, for each non-canceled session, effective time = student.sessionLength + (item["time modified"] || 0)
     function recalcCharge() {
       const selectedIndex = studentSelect.value;
       if (selectedIndex === '') {
@@ -442,81 +395,51 @@ const monthlyView = {
         totalChargeDisplay.textContent = '0';
         return;
       }
-
       const student = students[selectedIndex];
-      const scheduledCount = currentSchedule.length;
-      const canceledCount = currentSchedule.filter(i => i.canceled).length;
-      const violationCount = currentSchedule.filter(i => i.violation).length;
-      // Count how many items have a non-null "makeup"
-      const makeupCount = currentSchedule.filter(i => i.makeup !== null).length;
-      
-      // Show these counts in the summary
+      const classes = currentSchedule;
+      const scheduledCount = classes.length;
+      const canceledCount = classes.filter(i => i.canceled).length;
+      const violationCount = classes.filter(i => i.violation).length;
+      const makeupCount = classes.filter(i => i.makeup !== null).length;
       scheduledCountDisplay.textContent = String(scheduledCount);
       canceledCountDisplay.textContent = String(canceledCount);
       makeupCountDisplay.textContent = String(makeupCount);
       profileModifierDisplay.textContent = String(student.additionalChargeModifier);
-
-      // Parse the temp modifier
-      const tempModifier = parseFloat(tempModifierInput.value) || 0;
-
-      // totalCharge
+      let sumEffectiveTime = 0;
+      classes.forEach(item => {
+        if (!item.canceled) {
+          sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
+        }
+      });
+      // Total charge uses effective session time (for non-canceled classes)
       const totalCharge =
-        (student.hourlyRate * student.sessionLength * (scheduledCount - canceledCount + makeupCount)) +
+        (student.hourlyRate * sumEffectiveTime) +
         (500 * violationCount) +
-        student.additionalChargeModifier +
-        tempModifier;
-      
+        student.additionalChargeModifier;
       totalChargeDisplay.textContent = String(totalCharge);
     }
-
     updateChargeBtn.addEventListener('click', recalcCharge);
 
-    // --------------------------------------------------
-    // Print Buttons
-    // --------------------------------------------------
-    printIndividualBtn.addEventListener('click', () => {
-      window.print();
-    });
+    // 14) Print Buttons (removed print individual and batch print buttons from monthlyView)
+    // (We do not include any print buttons here)
 
-    printAllBtn.addEventListener('click', () => {
-      alert('Batch printing not implemented. (Placeholder)');
-    });
-
-    // --------------------------------------------------
-    // Backup / Restore / Clear
-    // --------------------------------------------------
+    // 15) Backup / Restore / Clear
     downloadJsonBtn.addEventListener('click', () => {
-      // 1) Read the current month/year from inputs
-      const chosenMonth = parseInt(monthInput.value, 10);
-      const chosenYear = parseInt(yearInput.value, 10);
-      const mm = String(chosenMonth).padStart(2, '0');
-      const yearMonth = `${chosenYear}_${mm}`;
-    
-      // 2) Build the file name
-      const fileName = `${yearMonth}_schedule_backup.json`;
-    
-      // 3) Create the JSON blob
       const dataStr = JSON.stringify(monthlySchedulesByMonth, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-    
-      // 4) Download
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName;
+      link.download = 'monthly_schedules_by_month.json';
       link.click();
       URL.revokeObjectURL(url);
     });
-    
-
     uploadJsonBtn.addEventListener('click', () => {
       uploadJsonInput.click();
     });
-
     uploadJsonInput.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (!file) return;
-      
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
@@ -535,11 +458,9 @@ const monthlyView = {
       };
       reader.readAsText(file);
     });
-
     clearLocalStorageBtn.addEventListener('click', () => {
-      const confirmClear = window.confirm('Are you sure you want to clear all monthly schedules from local storage?');
+      const confirmClear = window.confirm('Are you sure you want to clear all monthly schedules from local storage? This cannot be undone.');
       if (!confirmClear) return;
-
       localStorage.removeItem('monthlySchedulesByMonth');
       monthlySchedulesByMonth = {};
       currentSchedule = [];
@@ -548,36 +469,12 @@ const monthlyView = {
       alert('Local storage cleared.');
     });
 
-    // --------------------------------------------------
-    // Helper: persist the current schedule
-    // --------------------------------------------------
-    function persistCurrentSchedule() {
-      const selectedIndex = studentSelect.value;
-      if (selectedIndex === '') return;
-
-      const chosenMonth = parseInt(monthInput.value, 10);
-      const chosenYear = parseInt(yearInput.value, 10);
-      if (!chosenMonth || !chosenYear) return;
-
-      const student = students[selectedIndex];
-      const yearMonth = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
-      if (!monthlySchedulesByMonth[yearMonth]) {
-        monthlySchedulesByMonth[yearMonth] = {};
-      }
-      monthlySchedulesByMonth[yearMonth][student.id] = currentSchedule;
-      saveMonthlySchedules();
-    }
-
-    // --------------------------------------------------
-    // 3) Listen for changes => auto-load the schedule
-    // --------------------------------------------------
+    // 16) Listen for changes => auto-load schedule
     studentSelect.addEventListener('change', loadOrGenerateSchedule);
     monthInput.addEventListener('change', loadOrGenerateSchedule);
     yearInput.addEventListener('change', loadOrGenerateSchedule);
 
-    // --------------------------------------------------
-    // 4) Initial auto-load
-    // --------------------------------------------------
+    // 17) Initial auto-load
     if (studentSelect.value === '' && students.length > 0) {
       studentSelect.value = '0';
     }
