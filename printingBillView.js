@@ -184,7 +184,7 @@ const printingBillView = {
             <tr><th></th><th>數量/金額</th></tr>
           </thead>
           <tbody>
-            <tr><td>正常上課次數</td><td>${totalScheduled}</td></tr>
+            <tr><td>排定上課次數</td><td>${totalScheduled}</td></tr>
             <tr><td>請假次數</td><td>${canceledCount}</td></tr>
             <tr><td>補課次數</td><td>${makeupCount}</td></tr>
             <tr><td>總上課時數</td><td>${sumEffectiveTime.toFixed(2)}</td></tr>
