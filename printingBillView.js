@@ -87,7 +87,7 @@ const printingBillView = {
         }
         foundAnyData = true;
         console.log('Found schedule object:', scheduleObj);
-        // For old JSON, scheduleObj is an array; if so, use it directly.
+        // For old JSON, scheduleObj is an array; use it directly.
         const schedule = Array.isArray(scheduleObj) ? scheduleObj : scheduleObj.classes;
   
         const childDiv = document.createElement('div');
@@ -111,18 +111,30 @@ const printingBillView = {
         const tbody = document.createElement('tbody');
         let canceledCount = 0;
         let makeupCount = 0;
-        let sumEffectiveTime = 0; // Sum effective session time (for non-canceled sessions)
+        let sumEffectiveTime = 0; // Sum effective session time for non-canceled sessions (or makeup sessions)
         schedule.forEach(item => {
           const row = document.createElement('tr');
           // Date column
           const dateTd = document.createElement('td');
           dateTd.textContent = item.date;
           row.appendChild(dateTd);
-          // Status column: if canceled, show as before; else, use time modified info.
+          // Status column
           const statusTd = document.createElement('td');
           if (item.canceled) {
-            statusTd.textContent = item.violation ? '請假(酌收補償金500元)' : '請假';
+            if (item.makeup && item.violation) {
+              statusTd.textContent = '請假(酌收補償金500元, 補課)';
+            } else if (item.makeup) {
+              statusTd.textContent = '請假 (補課)';
+            } else if (item.violation) {
+              statusTd.textContent = '請假(酌收補償金500元)';
+            } else {
+              statusTd.textContent = '請假';
+            }
             canceledCount++;
+            // If makeup is arranged, even if canceled, we add its effective session time.
+            if (item.makeup) {
+              sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
+            }
           } else {
             const mod = item["time modified"] || 0;
             if (mod > 0) {
@@ -132,11 +144,11 @@ const printingBillView = {
             } else {
               statusTd.textContent = '正常上課';
             }
-            // Effective time = base sessionLength + modifier
             sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
           }
+          
           row.appendChild(statusTd);
-          // Makeup column remains the same.
+          // Makeup column
           const makeupTd = document.createElement('td');
           if (item.makeup) {
             makeupTd.textContent = `${item.makeup.date} ${item.makeup.time}`;
@@ -153,17 +165,17 @@ const printingBillView = {
         // Compute totals for this student:
         const totalScheduled = schedule.length;
         const totalViolation = schedule.filter(i => i.violation).length;
-        // Expected charge: based on base sessionLength * totalScheduled
+        // Expected charge uses base session time (without modifiers)
         const expected = (student.hourlyRate * student.sessionLength * totalScheduled)
                          + student.additionalChargeModifier;
-        // Actual charge: uses the summed effective session time from non-canceled sessions
+        // Actual charge uses the summed effective session time from non-canceled or makeup sessions
         const actual = (student.hourlyRate * sumEffectiveTime)
                        + (500 * totalViolation)
                        + student.additionalChargeModifier;
         totalAllChildren += actual;
   
         // Build summary table for this student.
-        // We add a new row for 總上課時數 above 費用小計.
+        // Add a new row for 總上課時數 above 費用小計.
         const summaryTable = document.createElement('table');
         summaryTable.border = '1';
         summaryTable.style.width = '100%';

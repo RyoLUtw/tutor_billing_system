@@ -98,6 +98,7 @@ const monthlyView = {
           <input type="time" id="makeupTimeInput" />
         </div>
         <br/>
+        
         <button id="saveCancellationBtn">Save</button>
         <button id="closePopupBtn">Close</button>
       </div>
@@ -334,7 +335,12 @@ const monthlyView = {
       data.canceled = true;
       data.violation = violationCheckbox.checked;
       if (makeupCheckbox.checked) {
-        data.makeup = { date: makeupDateInput.value, time: makeupTimeInput.value };
+        // Use the values directly from the inputs.
+        // Note: makeupDateInput.value is in "YYYY-MM-DD" format and makeupTimeInput.value is in "HH:MM" format.
+        data.makeup = { 
+          date: makeupDateInput.value, 
+          time: makeupTimeInput.value 
+        };
       } else {
         data.makeup = null;
       }
@@ -348,6 +354,14 @@ const monthlyView = {
       cancellationPopup.style.display = 'none';
       activeIndex = null;
     }
+    makeupCheckbox.addEventListener('change', () => {
+      if (makeupCheckbox.checked) {
+        makeupDetails.style.display = 'block';
+      } else {
+        makeupDetails.style.display = 'none';
+      }
+    });
+    
     function unmarkCancelled(index) {
       const data = currentSchedule[index];
       data.canceled = false;
