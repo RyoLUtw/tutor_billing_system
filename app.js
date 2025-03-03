@@ -72,6 +72,13 @@ function router() {
       monthlySchedulesByMonth
     });
   }
+  else if (hash === "#/daysoff") {
+    daysOffView.render(main, {
+      students,
+      monthlySchedulesByMonth: monthlySchedulesByMonth
+    });
+  }
+  
   else {
     // Fallback: If unknown hash, redirect to #/profile
     window.location.hash = '#/profile';
