@@ -89,12 +89,12 @@ const printingBillView = {
         console.log('Found schedule object:', scheduleObj);
         // For old JSON, scheduleObj is an array; use it directly.
         const schedule = Array.isArray(scheduleObj) ? scheduleObj : scheduleObj.classes;
-  
+
         const childDiv = document.createElement('div');
         childDiv.style.border = '1px solid #000';
         childDiv.style.marginBottom = '20px';
         childDiv.innerHTML = `<h2>學生姓名: ${student.name}</h2>`;
-  
+
         // Build table header WITHOUT extra column; status column will include time modifier info.
         const table = document.createElement('table');
         table.border = '1';
@@ -146,7 +146,7 @@ const printingBillView = {
             }
             sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
           }
-          
+
           row.appendChild(statusTd);
           // Makeup column
           const makeupTd = document.createElement('td');
@@ -161,19 +161,19 @@ const printingBillView = {
         });
         table.appendChild(tbody);
         childDiv.appendChild(table);
-  
+
         // Compute totals for this student:
         const totalScheduled = schedule.length;
         const totalViolation = schedule.filter(i => i.violation).length;
         // Expected charge uses base session time (without modifiers)
         const expected = (student.hourlyRate * student.sessionLength * totalScheduled)
-                         + student.additionalChargeModifier;
+          + student.additionalChargeModifier;
         // Actual charge uses the summed effective session time from non-canceled or makeup sessions
         const actual = (student.hourlyRate * sumEffectiveTime)
-                       + (500 * totalViolation)
-                       + student.additionalChargeModifier;
+          + (500 * totalViolation)
+          + student.additionalChargeModifier;
         totalAllChildren += actual;
-  
+
         // Build summary table for this student.
         // Add a new row for 總上課時數 above 費用小計.
         const summaryTable = document.createElement('table');
@@ -198,11 +198,15 @@ const printingBillView = {
         alert(`No data found for parent "${parentObj.name}" in ${yearMonth}.`);
         return;
       }
+
+      // Add parent's billModifierValue to the total, if any.
+      totalAllChildren += parentObj.billModifierValue || 0;
+      
       const h1 = document.createElement('h1');
       h1.textContent = `總費用: ${totalAllChildren.toFixed(2)}`;
       billContainer.appendChild(h1);
     }
-  
+
     // Trigger generateBill on change of parent, month, or year
     generateBillBtn.addEventListener('click', generateBill);
     parentSelect.addEventListener('change', generateBill);
@@ -211,7 +215,7 @@ const printingBillView = {
     if (parentSelect.value === '' && parents.length > 0) {
       parentSelect.value = '0';
     }
-  
+
     // Print to PNG with margin and custom filename
     printBtn.addEventListener('click', () => {
       const originalPadding = billContainer.style.padding;
