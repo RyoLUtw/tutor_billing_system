@@ -1,6 +1,6 @@
 // views/printingBillView.js
 const printingBillView = {
-  render: function (rootElement, { parents, students, monthlySchedulesByMonth }) {
+  render: function (rootElement, { parents, students, archivedStudents = [], monthlySchedulesByMonth }) {
     const container = document.createElement('div');
     container.innerHTML = `
       <h1>Printing Bill</h1>
@@ -29,23 +29,49 @@ const printingBillView = {
     const printBtn = container.querySelector('#printBtn');
     const billContainer = container.querySelector('#billContainer');
 
-    // Populate parent dropdown
-    parents.forEach((p, i) => {
-      const option = document.createElement('option');
-      option.value = i;
-      option.textContent = p.name;
-      parentSelect.appendChild(option);
-    });
+    // Populate parent dropdown based on actual schedules in selected month
+    function populateParentSelect() {
+      parentSelect.innerHTML = '';
+      const chosenMonth = parseInt(monthInput.value, 10);
+      const chosenYear  = parseInt(yearInput.value, 10);
+      const ym = `${chosenYear}-${String(chosenMonth).padStart(2,'0')}`;
+      const monthMap = monthlySchedulesByMonth[ym] || {};
 
+      parents.forEach(parent => {
+        // include parent if any of their children has ≥1 session this month
+        //console.log("parent: ", parent.children)
+        const hasSchedule = parent.children.some(childId => {
+          const sched = monthMap[childId];
+          return Array.isArray(sched) && sched.length > 0;
+        });
+        //onsole.log("has schedule?",hasSchedule)
+        if (hasSchedule) {
+          const opt = document.createElement('option');
+          opt.value = parent.id;
+          opt.textContent = parent.name;
+          parentSelect.appendChild(opt);
+        }
+      });
+    }
+    
     // Default month/year to current date
     const now = new Date();
     monthInput.value = now.getMonth() + 1;
     yearInput.value = now.getFullYear();
+    
+    
+    // initial population and re-populate on month/year change
+    populateParentSelect();
+    monthInput.addEventListener('change', populateParentSelect);
+    yearInput.addEventListener('change',  populateParentSelect);
+
+
+    
 
     function generateBill() {
       billContainer.innerHTML = '';
-      const parentIndex = parentSelect.value;
-      if (parentIndex === '') {
+      const parentId = parentSelect.value;
+      if (!parentId) {
         alert('Please select a parent.');
         return;
       }
@@ -55,8 +81,13 @@ const printingBillView = {
         alert('Please enter valid month and year.');
         return;
       }
-      const parentObj = parents[parentIndex];
+       const parentObj = parents.find(p => p.id === parentId);
+      if (!parentObj) {
+        alert('Selected parent not found.');
+        return;
+      }
       const yearMonth = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
+      const allStudents = students.concat(archivedStudents);
 
       console.log('>>> Print Bill DEBUG <<<');
       console.log('parents array:', parents);
@@ -69,7 +100,7 @@ const printingBillView = {
       let foundAnyData = false;
       parentObj.children.forEach(childId => {
         console.log('Now checking childId:', childId);
-        const student = students.find(s => s.id === childId);
+        const student = allStudents.find(s => s.id === childId);
         if (!student) {
           console.log(`No matching student found for childId=${childId}. Skipping.`);
           return;
@@ -201,7 +232,7 @@ const printingBillView = {
 
       // Add parent's billModifierValue to the total, if any.
       totalAllChildren += parentObj.billModifierValue || 0;
-      
+
       const h1 = document.createElement('h1');
       h1.textContent = `總費用: ${totalAllChildren.toFixed(2)}`;
       billContainer.appendChild(h1);

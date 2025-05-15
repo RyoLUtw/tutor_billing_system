@@ -1,6 +1,6 @@
 // parentProfileView.js
 const parentProfileView = {
-  render: function (rootElement, { parents, students, onParentDataUpdate }) {
+  render: function (rootElement, { parents, students, archivedStudents = [], onParentDataUpdate }) {
     let selectedIndex = null;
 
     const container = document.createElement('div');
@@ -71,24 +71,28 @@ const parentProfileView = {
     // In-memory list of checkboxes for students
     const studentCheckboxes = [];
 
-    // 1) Render student checkboxes
-    function renderStudentCheckboxes() {
-      studentCheckboxesContainer.innerHTML = '';
-      students.forEach(student => {
-        const wrapper = document.createElement('div'); // separate line
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.value = student.id;
-        const label = document.createElement('label');
-        label.textContent = student.name;
+// 0) Build a combined list once
+const allStudents = students.concat(archivedStudents);
 
-        wrapper.appendChild(checkbox);
-        wrapper.appendChild(label);
-        studentCheckboxesContainer.appendChild(wrapper);
-        studentCheckboxes.push(checkbox);
-      });
-    }
-    renderStudentCheckboxes();
+    // 1) Render student checkboxes
+function renderStudentCheckboxes() {
+  studentCheckboxesContainer.innerHTML = '';
+  studentCheckboxes.length = 0;
+  allStudents.forEach(student => {
+    const wrapper = document.createElement('div');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = student.id;
+    const label = document.createElement('label');
+    // Append " (inactive)" if this student came from the archive
+    const isInactive = archivedStudents.some(a => a.id === student.id);
+    label.textContent = student.name + (isInactive ? ' (inactive)' : '');
+    wrapper.append(cb, label);
+    studentCheckboxesContainer.appendChild(wrapper);
+    studentCheckboxes.push(cb);
+  });
+}
+renderStudentCheckboxes();
 
     // 2) Functions to refresh the parents table
     function refreshParentsTable() {
@@ -113,12 +117,14 @@ const parentProfileView = {
 
         // Children
         const childrenCell = document.createElement('td');
-        const childNames = p.children.map(childId => {
-          const s = students.find(stu => stu.id === childId);
-          return s ? s.name : `Unknown(${childId})`;
-        });
-        childrenCell.textContent = childNames.join(', ');
-        row.appendChild(childrenCell);
+    const childNames = p.children.map(childId => {
+      const s = allStudents.find(stu => stu.id === childId);
+      if (!s) return `Unknown(${childId})`;
+      const inactive = archivedStudents.some(a => a.id === s.id);
+      return s.name + (inactive ? ' (inactive)' : '');
+    });
+    childrenCell.textContent = childNames.join(', ');
+    row.appendChild(childrenCell);
 
         // Actions
         const actionCell = document.createElement('td');

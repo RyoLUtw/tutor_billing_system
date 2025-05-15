@@ -3,6 +3,8 @@
 // 1) Global data (in memory) loaded from localStorage
 // Adjust keys as needed if you’ve changed the localStorage keys.
 let students = JSON.parse(localStorage.getItem('studentsData')) || [];
+// load archived students so we never lose their profiles
+let archivedStudents = JSON.parse(localStorage.getItem('archivedStudentsData')) || [];
 let parents = JSON.parse(localStorage.getItem('parentsData')) || [];
 let monthlySchedulesByMonth = JSON.parse(localStorage.getItem('monthlySchedulesByMonth')) || [];
 let salaryReviews = [];  // or whatever structure you use for teacher’s review
@@ -11,6 +13,12 @@ let salaryReviews = [];  // or whatever structure you use for teacher’s review
 function updateStudents(newStudents) {
   students = newStudents;
   localStorage.setItem('studentsData', JSON.stringify(students));
+}
+
+// new helper to persist the archive
+function updateArchivedStudents(newArchived) {
+  archivedStudents = newArchived;
+  localStorage.setItem('archivedStudentsData', JSON.stringify(archivedStudents));
 }
 
 // Example: a function to update parent data from the parent view
@@ -33,7 +41,10 @@ function router() {
     // Student Profile
     studentProfileView.render(main, {
       students,
-      onDataUpdate: updateStudents
+      archivedStudents,
+      monthlySchedulesByMonth,
+      onDataUpdate: updateStudents,
+      onArchivedDataUpdate: updateArchivedStudents
     });
   }
   else if (hash === '#/monthly') {
@@ -51,6 +62,7 @@ function router() {
     // teacherView might need students, monthlySchedules, salaryReviews, etc.
     teacherView.render(main, {
       students,
+      archivedStudents,
       monthlySchedules: monthlySchedulesByMonth,
       salaryReviews
     });
@@ -60,6 +72,7 @@ function router() {
     parentProfileView.render(main, {
       parents,
       students,
+      archivedStudents,  
       onParentDataUpdate: updateParents
     });
   }
@@ -69,6 +82,7 @@ function router() {
     printingBillView.render(main, {
       parents,
       students,
+      archivedStudents,  
       monthlySchedulesByMonth
     });
   }
