@@ -33,8 +33,8 @@ const printingBillView = {
     function populateParentSelect() {
       parentSelect.innerHTML = '';
       const chosenMonth = parseInt(monthInput.value, 10);
-      const chosenYear  = parseInt(yearInput.value, 10);
-      const ym = `${chosenYear}-${String(chosenMonth).padStart(2,'0')}`;
+      const chosenYear = parseInt(yearInput.value, 10);
+      const ym = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
       const monthMap = monthlySchedulesByMonth[ym] || {};
 
       parents.forEach(parent => {
@@ -53,20 +53,20 @@ const printingBillView = {
         }
       });
     }
-    
+
     // Default month/year to current date
     const now = new Date();
     monthInput.value = now.getMonth() + 1;
     yearInput.value = now.getFullYear();
-    
-    
+
+
     // initial population and re-populate on month/year change
     populateParentSelect();
     monthInput.addEventListener('change', populateParentSelect);
-    yearInput.addEventListener('change',  populateParentSelect);
+    yearInput.addEventListener('change', populateParentSelect);
 
 
-    
+
 
     function generateBill() {
       billContainer.innerHTML = '';
@@ -81,7 +81,7 @@ const printingBillView = {
         alert('Please enter valid month and year.');
         return;
       }
-       const parentObj = parents.find(p => p.id === parentId);
+      const parentObj = parents.find(p => p.id === parentId);
       if (!parentObj) {
         alert('Selected parent not found.');
         return;
@@ -256,7 +256,14 @@ const printingBillView = {
         const chosenMonth = parseInt(monthInput.value, 10);
         const chosenYear = parseInt(yearInput.value, 10);
         const mm = String(chosenMonth).padStart(2, '0');
-        const parentObj = parents[parentSelect.value];
+        const selectedParentId = parentSelect.value;
+        const parentObj = parents.find(p => p.id === selectedParentId);  // ✅ lookup by id
+
+        if (!parentObj) {
+          alert('Selected parent not found.');
+          return;                              // prevent downstream errors
+        }
+
         const safeParentName = parentObj.name.replace(/\s+/g, '');
         const fileName = `${chosenYear}_${mm}_${safeParentName}_bill.png`;
         const link = document.createElement('a');
