@@ -231,7 +231,7 @@ const studentProfileView = {
       scheduleCheckContainer.appendChild(tbl);
       confirmArchiveBtn.disabled = false;
     });
-    +  confirmArchiveBtn.addEventListener('click', () => {
+    confirmArchiveBtn.addEventListener('click', () => {
     const ym       = archiveSinceInput.value;                    // “YYYY-MM”
     const monthMap = monthlySchedulesByMonth[ym] || {};          // grab that month
     const sched    = monthMap[currentStudent.id] || [];
