@@ -17,6 +17,8 @@ const printingBillView = {
       <div>
         <button id="generateBillBtn">Generate Bill</button>
         <button id="printBtn">Print to PNG</button>
+        <button id="printAllBtn">Print All PNG</button>
+        <button id="downloadZipBtn">Download All as ZIP</button>
       </div>
       <div id="billContainer"></div>
     `;
@@ -27,7 +29,19 @@ const printingBillView = {
     const yearInput = container.querySelector('#yearInput');
     const generateBillBtn = container.querySelector('#generateBillBtn');
     const printBtn = container.querySelector('#printBtn');
+    const printAllBtn = container.querySelector('#printAllBtn');
+    const downloadZipBtn = container.querySelector('#downloadZipBtn');
     const billContainer = container.querySelector('#billContainer');
+
+    function hasSchedulesForParent(parent, yearMonth) {
+      const monthMap = monthlySchedulesByMonth[yearMonth] || {};
+      return parent.children.some(childId => {
+        const scheduleObj = monthMap[childId];
+        if (!scheduleObj) return false;
+        const schedule = Array.isArray(scheduleObj) ? scheduleObj : scheduleObj.classes;
+        return Array.isArray(schedule) && schedule.length > 0;
+      });
+    }
 
     // Populate parent dropdown based on actual schedules in selected month
     function populateParentSelect() {
@@ -35,16 +49,9 @@ const printingBillView = {
       const chosenMonth = parseInt(monthInput.value, 10);
       const chosenYear = parseInt(yearInput.value, 10);
       const ym = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
-      const monthMap = monthlySchedulesByMonth[ym] || {};
-
       parents.forEach(parent => {
         // include parent if any of their children has ≥1 session this month
-        //console.log("parent: ", parent.children)
-        const hasSchedule = parent.children.some(childId => {
-          const sched = monthMap[childId];
-          return Array.isArray(sched) && sched.length > 0;
-        });
-        //onsole.log("has schedule?",hasSchedule)
+        const hasSchedule = hasSchedulesForParent(parent, ym);
         if (hasSchedule) {
           const opt = document.createElement('option');
           opt.value = parent.id;
@@ -68,23 +75,23 @@ const printingBillView = {
 
 
 
-    function generateBill() {
+    function generateBill(targetParentId = parentSelect.value, { skipAlert = false } = {}) {
       billContainer.innerHTML = '';
-      const parentId = parentSelect.value;
+      const parentId = targetParentId;
       if (!parentId) {
-        alert('Please select a parent.');
-        return;
+        if (!skipAlert) alert('Please select a parent.');
+        return false;
       }
       const chosenMonth = parseInt(monthInput.value, 10);
       const chosenYear = parseInt(yearInput.value, 10);
       if (!chosenMonth || !chosenYear) {
-        alert('Please enter valid month and year.');
-        return;
+        if (!skipAlert) alert('Please enter valid month and year.');
+        return false;
       }
       const parentObj = parents.find(p => p.id === parentId);
       if (!parentObj) {
-        alert('Selected parent not found.');
-        return;
+        if (!skipAlert) alert('Selected parent not found.');
+        return false;
       }
       const yearMonth = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
       const allStudents = students.concat(archivedStudents);
@@ -226,8 +233,8 @@ const printingBillView = {
         billContainer.appendChild(childDiv);
       });
       if (!foundAnyData) {
-        alert(`No data found for parent "${parentObj.name}" in ${yearMonth}.`);
-        return;
+        if (!skipAlert) alert(`No data found for parent "${parentObj.name}" in ${yearMonth}.`);
+        return false;
       }
 
       // Add parent's billModifierValue to the total, if any.
@@ -236,41 +243,127 @@ const printingBillView = {
       const h1 = document.createElement('h1');
       h1.textContent = `總費用: ${totalAllChildren.toFixed(2)}`;
       billContainer.appendChild(h1);
+      return true;
     }
 
     // Trigger generateBill on change of parent, month, or year
-    generateBillBtn.addEventListener('click', generateBill);
-    parentSelect.addEventListener('change', generateBill);
-    monthInput.addEventListener('change', generateBill);
-    yearInput.addEventListener('change', generateBill);
+    generateBillBtn.addEventListener('click', () => generateBill());
+    parentSelect.addEventListener('change', () => generateBill());
+    monthInput.addEventListener('change', () => generateBill());
+    yearInput.addEventListener('change', () => generateBill());
     if (parentSelect.value === '' && parents.length > 0) {
       parentSelect.value = '0';
     }
 
     // Print to PNG with margin and custom filename
-    printBtn.addEventListener('click', () => {
+    async function renderBillToDataUrl(parentId) {
+      const didRender = generateBill(parentId, { skipAlert: true });
+      if (!didRender) return null;
       const originalPadding = billContainer.style.padding;
       billContainer.style.padding = '20px';
-      html2canvas(billContainer).then(canvas => {
-        billContainer.style.padding = originalPadding || '';
-        const chosenMonth = parseInt(monthInput.value, 10);
-        const chosenYear = parseInt(yearInput.value, 10);
-        const mm = String(chosenMonth).padStart(2, '0');
-        const selectedParentId = parentSelect.value;
-        const parentObj = parents.find(p => p.id === selectedParentId);  // ✅ lookup by id
+      const canvas = await html2canvas(billContainer);
+      billContainer.style.padding = originalPadding || '';
+      return canvas.toDataURL('image/png');
+    }
 
-        if (!parentObj) {
-          alert('Selected parent not found.');
-          return;                              // prevent downstream errors
-        }
+    printBtn.addEventListener('click', async () => {
+      const originalPadding = billContainer.style.padding;
+      billContainer.style.padding = '20px';
+      const canvas = await html2canvas(billContainer);
+      billContainer.style.padding = originalPadding || '';
+      const chosenMonth = parseInt(monthInput.value, 10);
+      const chosenYear = parseInt(yearInput.value, 10);
+      const mm = String(chosenMonth).padStart(2, '0');
+      const selectedParentId = parentSelect.value;
+      const parentObj = parents.find(p => p.id === selectedParentId);  // ✅ lookup by id
 
-        const safeParentName = parentObj.name.replace(/\s+/g, '');
+      if (!parentObj) {
+        alert('Selected parent not found.');
+        return;                              // prevent downstream errors
+      }
+
+      const safeParentName = parentObj.name.replace(/\s+/g, '');
+      const fileName = `${chosenYear}_${mm}_${safeParentName}_bill.png`;
+      const link = document.createElement('a');
+      link.download = fileName;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    printAllBtn.addEventListener('click', async () => {
+      const chosenMonth = parseInt(monthInput.value, 10);
+      const chosenYear = parseInt(yearInput.value, 10);
+      if (!chosenMonth || !chosenYear) {
+        alert('Please enter valid month and year.');
+        return;
+      }
+      const ym = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
+      const parentsWithSchedules = parents.filter(p => hasSchedulesForParent(p, ym));
+      if (parentsWithSchedules.length === 0) {
+        alert('No bills available to print for the selected month.');
+        return;
+      }
+
+      const originalParent = parentSelect.value;
+      const mm = String(chosenMonth).padStart(2, '0');
+
+      for (const parent of parentsWithSchedules) {
+        parentSelect.value = parent.id;
+        const dataUrl = await renderBillToDataUrl(parent.id);
+        if (!dataUrl) continue;
+        const safeParentName = parent.name.replace(/\s+/g, '');
         const fileName = `${chosenYear}_${mm}_${safeParentName}_bill.png`;
         const link = document.createElement('a');
         link.download = fileName;
-        link.href = canvas.toDataURL('image/png');
+        link.href = dataUrl;
         link.click();
-      });
+      }
+
+      parentSelect.value = originalParent;
+      if (originalParent) generateBill(originalParent, { skipAlert: true });
+    });
+
+    downloadZipBtn.addEventListener('click', async () => {
+      const chosenMonth = parseInt(monthInput.value, 10);
+      const chosenYear = parseInt(yearInput.value, 10);
+      if (!chosenMonth || !chosenYear) {
+        alert('Please enter valid month and year.');
+        return;
+      }
+      if (typeof JSZip === 'undefined') {
+        alert('ZIP generation library is not available.');
+        return;
+      }
+      const ym = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
+      const parentsWithSchedules = parents.filter(p => hasSchedulesForParent(p, ym));
+      if (parentsWithSchedules.length === 0) {
+        alert('No bills available to download for the selected month.');
+        return;
+      }
+
+      const originalParent = parentSelect.value;
+      const mm = String(chosenMonth).padStart(2, '0');
+      const zip = new JSZip();
+
+      for (const parent of parentsWithSchedules) {
+        parentSelect.value = parent.id;
+        const dataUrl = await renderBillToDataUrl(parent.id);
+        if (!dataUrl) continue;
+        const safeParentName = parent.name.replace(/\s+/g, '');
+        const fileName = `${chosenYear}_${mm}_${safeParentName}_bill.png`;
+        const base64Data = dataUrl.split(',')[1];
+        zip.file(fileName, base64Data, { base64: true });
+      }
+
+      parentSelect.value = originalParent;
+      if (originalParent) generateBill(originalParent, { skipAlert: true });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const downloadLink = document.createElement('a');
+      downloadLink.href = URL.createObjectURL(blob);
+      downloadLink.download = `${chosenYear}_${mm}_all_bills.zip`;
+      downloadLink.click();
+      URL.revokeObjectURL(downloadLink.href);
     });
   }
 };
