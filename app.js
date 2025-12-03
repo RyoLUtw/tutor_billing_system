@@ -2,7 +2,7 @@
 
 // --- NEW: imports for Google auth + Drive storage ---
 import { initAuth, getAccessToken } from "./auth.js";
-import { setDriveToken, loadAll, saveAll, ensureDbFile, setTokenRefresher, writeVisibleBackup, ensureVisibleFolder } from "./driveStorage.js";
+import { setDriveToken, loadAll, saveAll, ensureDbFile, setTokenRefresher, writeVisibleBackup } from "./driveStorage.js";
 import importView from "./importView.js";
 
 
@@ -18,6 +18,11 @@ let driveMeta = null;
 // Track cloud version to detect drift
 let lastSeenVersion = null;
 let lastSeenModifiedTime = null;
+
+// Inactivity lock
+const INACTIVITY_LIMIT_MS = 3 * 60 * 1000;
+let inactivityTimer = null;
+let inactivityOverlay = null;
 
 // Debounced save timer
 let _saveTimer = null;
@@ -171,41 +176,50 @@ async function handleLegacyImport(bundle) {
   };
 })();
 
-function showConflictDialog(freshMeta) {
-  return new Promise((resolve) => {
-    // overlay
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position:fixed; inset:0; background:rgba(0,0,0,0.35);
-      display:flex; align-items:center; justify-content:center; z-index:9999;
-    `;
-    // dialog
-    const box = document.createElement('div');
-    box.style.cssText = `
-      background:#fff; padding:16px; max-width:520px; width:92%;
-      border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.3); font-family:sans-serif;
-    `;
-    const when = freshMeta?.modifiedTime ? new Date(freshMeta.modifiedTime).toLocaleString() : 'unknown time';
-    box.innerHTML = `
-      <h3 style="margin:0 0 8px;">Cloud version changed</h3>
-      <p style="margin:0 0 12px; color:#444;">
-        Someone (or another device) updated this file in Google Drive at <b>${when}</b>.<br>
-        Choose what to do:
-      </p>
-      <div style="display:flex; gap:8px; margin-top:10px;">
-        <button id="btn-reload">Reload cloud</button>
-        <button id="btn-overwrite">Overwrite with my changes</button>
-        <button id="btn-cancel" style="margin-left:auto;">Cancel</button>
-      </div>
-    `;
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
+function lockForInactivity() {
+  if (inactivityOverlay) return;
 
-    const cleanup = (val) => { document.body.removeChild(overlay); resolve(val); };
-    box.querySelector('#btn-reload').onclick = () => cleanup('reload');
-    box.querySelector('#btn-overwrite').onclick = () => cleanup('overwrite');
-    box.querySelector('#btn-cancel').onclick = () => cleanup(null);
-  });
+  inactivityOverlay = document.createElement('div');
+  inactivityOverlay.style.cssText = `
+    position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    display:flex; align-items:center; justify-content:center; z-index:99999;
+    pointer-events:all; backdrop-filter:blur(2px);
+  `;
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    background:#fff; padding:20px 22px; max-width:520px; width:92%;
+    border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,.35); font-family:sans-serif;
+    text-align:center;
+  `;
+  box.innerHTML = `
+    <h3 style="margin:0 0 10px; font-size:1.2rem;">Session locked</h3>
+    <p style="margin:0 0 14px; color:#444; line-height:1.5;">
+      No activity was detected for 3 minutes. To continue, please refresh the page to reload the latest data.
+    </p>
+    <button id="btn-refresh-now" style="padding:10px 16px; font-size:1rem;">Refresh now</button>
+  `;
+
+  inactivityOverlay.appendChild(box);
+  document.body.appendChild(inactivityOverlay);
+
+  const btn = box.querySelector('#btn-refresh-now');
+  if (btn) {
+    btn.onclick = () => window.location.reload();
+  }
+}
+
+function resetInactivityTimer() {
+  if (inactivityOverlay) return; // already locked
+  clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(lockForInactivity, INACTIVITY_LIMIT_MS);
+}
+
+function initInactivityWatchers() {
+  const events = ["click", "keydown", "mousemove", "scroll", "touchstart", "visibilitychange"];
+  events.forEach((evt) => document.addEventListener(evt, resetInactivityTimer, { passive: true }));
+  window.addEventListener("focus", resetInactivityTimer);
+  resetInactivityTimer();
 }
 
 
@@ -217,35 +231,6 @@ function queueCloudSave() {
   _saveTimer = setTimeout(async () => {
     try {
       const bundle = makeBundleFromState();
-
-      // --- Preflight: did the cloud file change since we loaded it? ---
-      const freshMeta = await ensureDbFile(); // light metadata call (id, name, version, modifiedTime)
-      const drifted =
-        lastSeenVersion && freshMeta?.version && freshMeta.version !== lastSeenVersion;
-
-      if (drifted) {
-        setCloudStatus("Conflict detected.");
-        const choice = await showConflictDialog(freshMeta);
-
-        if (choice === 'reload') {
-          // Pull latest cloud copy and replace local state
-          const { data, meta } = await loadAll();
-          driveMeta = meta;
-          lastSeenVersion = meta?.version || null;
-          lastSeenModifiedTime = meta?.modifiedTime || null;
-          applyBundleToState(data);
-          setCloudStatus(`Reloaded cloud version (${new Date(lastSeenModifiedTime).toLocaleString()})`);
-          router();
-          return; // no save
-        }
-        if (choice === null) {
-          setCloudStatus("Save canceled due to conflict.", "#c00");
-          return; // user canceled
-        }
-        // else: overwrite → fall through to save below
-      }
-
-      // --- Save current local state to Drive ---
       setCloudStatus("Saving…");
       const updatedMeta = await saveAll(bundle, driveMeta.id);
       driveMeta = updatedMeta;
@@ -364,6 +349,8 @@ window.addEventListener('hashchange', router);
 const CLIENT_ID = "332987792434-u7r3hdl46asbqo0si3ngqu46kdbgf2at.apps.googleusercontent.com"; // <--- REPLACE THIS
 
 window.addEventListener('load', async () => {
+  initInactivityWatchers();
+
   // Hide all tabs by default; we'll show them after sign-in succeeds
   const navEl = document.querySelector('nav');
   if (navEl) navEl.style.display = 'none';
