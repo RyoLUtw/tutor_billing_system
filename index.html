@@ -23,6 +23,7 @@
       --shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
       --radius: 8px;
       --tap-size: 44px;
+      --content-font-size: 1.25rem;
       font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
     }
 
@@ -143,6 +144,7 @@
       background: var(--surface);
       color: var(--text);
       padding: 9px 11px;
+      font-size: var(--content-font-size);
     }
 
     input[type="file"] {
@@ -167,6 +169,7 @@
       gap: 6px;
       margin: 4px 8px 4px 0;
       color: var(--muted);
+      font-size: var(--content-font-size);
       font-weight: 650;
     }
 
@@ -195,6 +198,7 @@
 
     p {
       color: var(--muted);
+      font-size: var(--content-font-size);
     }
 
     hr {
@@ -249,12 +253,13 @@
     nav ul li a {
       display: flex;
       align-items: center;
-      min-height: 48px;
+      min-height: 72px;
       text-decoration: none;
-      padding: 0 14px;
+      padding: 0 21px;
       border-bottom: 3px solid transparent;
       color: var(--muted);
       white-space: nowrap;
+      font-size: 1.5rem;
       font-weight: 700;
     }
 
@@ -339,41 +344,80 @@
       min-width: 100%;
     }
 
-    th,
     td {
-      min-width: 120px;
+      min-width: 180px;
       border: 0;
       border-bottom: 1px solid var(--border);
-      padding: 11px 12px;
+      padding: 16px 18px;
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      font-size: var(--content-font-size);
+    }
+
+    th {
+      min-width: 180px;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 18px;
       text-align: left;
       vertical-align: top;
       overflow-wrap: anywhere;
     }
 
     th {
-      position: sticky;
-      top: 49px;
-      z-index: 3;
       background: var(--surface-muted);
       color: #344256;
-      font-size: 0.9rem;
+      font-size: 1.35rem;
       font-weight: 750;
+    }
+
+    th:first-child,
+    td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: inherit;
+      box-shadow: 1px 0 0 var(--border);
+    }
+
+    th:first-child {
+      z-index: 4;
+      background: var(--surface-muted);
     }
 
     tbody tr:nth-child(even) td {
       background: #fbfcfe;
     }
 
+    tbody tr:nth-child(odd) td {
+      background: var(--surface);
+    }
+
     td:last-child,
     th:last-child {
-      min-width: 190px;
+      min-width: 285px;
     }
 
     td button {
-      min-height: 36px;
-      padding: 7px 10px;
+      min-height: 54px;
+      padding: 10px 15px;
       margin: 2px 4px 2px 0 !important;
-      font-size: 0.93rem;
+      font-size: var(--content-font-size);
+    }
+
+    #tableContainer th button {
+      width: 44px !important;
+      min-width: 44px;
+      max-width: 44px;
+      height: 44px;
+      min-height: 44px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      vertical-align: middle;
     }
 
     details {
@@ -437,9 +481,9 @@
       }
 
       nav ul li a {
-        min-height: 46px;
-        padding-inline: 12px;
-        font-size: 0.94rem;
+        min-height: 69px;
+        padding-inline: 18px;
+        font-size: 1.41rem;
       }
 
       #app {
@@ -480,16 +524,31 @@
         grid-template-columns: 1fr;
       }
 
-      th,
       td {
-        min-width: 128px;
-        padding: 10px;
-        font-size: 0.94rem;
+        min-width: 192px;
+        padding: 15px;
+        font-size: var(--content-font-size);
+      }
+
+      th {
+        min-width: 192px;
+        padding: 15px;
       }
 
       td:last-child,
       th:last-child {
-        min-width: 170px;
+        min-width: 255px;
+      }
+
+      td button {
+        min-height: 54px;
+        font-size: var(--content-font-size);
+      }
+
+      #tableContainer th button {
+        width: 44px !important;
+        min-width: 44px;
+        max-width: 44px;
       }
 
       #cancellationPopup,
