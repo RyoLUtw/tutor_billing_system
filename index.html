@@ -340,35 +340,38 @@
       border: 0 !important;
       border-collapse: separate;
       border-spacing: 0;
+      table-layout: auto;
       -webkit-overflow-scrolling: touch;
     }
 
     thead,
     tbody,
     tr {
-      width: max-content;
-      min-width: 100%;
+      width: auto;
+      min-width: 0;
     }
 
     td {
-      min-width: 180px;
+      min-width: 0;
       border: 0;
       border-bottom: 1px solid var(--border);
       padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
       text-align: left;
       vertical-align: top;
       overflow-wrap: anywhere;
+      white-space: nowrap;
       font-size: var(--content-font-size);
     }
 
     th {
-      min-width: 180px;
+      min-width: 0;
       border: 0;
       border-bottom: 1px solid var(--border);
       padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
       text-align: left;
       vertical-align: top;
       overflow-wrap: anywhere;
+      white-space: nowrap;
     }
 
     th {
@@ -382,6 +385,7 @@
     td:first-child {
       position: sticky;
       left: 0;
+      min-width: 11ch;
       z-index: 2;
       background: inherit;
       box-shadow: 1px 0 0 var(--border);
@@ -402,14 +406,18 @@
 
     td:last-child,
     th:last-child {
-      min-width: 285px;
+      width: 1%;
+      min-width: max-content;
+      white-space: nowrap;
     }
 
     td button {
+      width: auto !important;
       min-height: 54px;
       padding: var(--button-padding-y) var(--button-padding-x);
       margin: 2px 4px 2px 0 !important;
       font-size: var(--content-font-size);
+      white-space: nowrap;
     }
 
     #tableContainer th button {
@@ -433,8 +441,12 @@
 
     .settings-control {
       display: grid;
-      gap: 12px;
-      max-width: 520px;
+      grid-template-columns: minmax(260px, 520px) minmax(220px, 1fr);
+      gap: 16px;
+      align-items: start;
+      max-width: 980px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
     }
 
     .settings-stepper {
@@ -464,6 +476,20 @@
 
     .settings-profile-switch button {
       min-width: 120px;
+    }
+
+    .setting-preview-inline {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .setting-preview-inline p {
+      margin: 0;
     }
 
     .settings-value {
@@ -608,24 +634,30 @@
       }
 
       td {
-        min-width: 192px;
+        min-width: 0;
         padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
         font-size: var(--content-font-size);
       }
 
       th {
-        min-width: 192px;
+        min-width: 0;
         padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
       }
 
       td:last-child,
       th:last-child {
-        min-width: 255px;
+        width: 1%;
+        min-width: max-content;
       }
 
       td button {
+        width: auto !important;
         min-height: 54px;
         font-size: var(--content-font-size);
+      }
+
+      .settings-control {
+        grid-template-columns: 1fr;
       }
 
       #tableContainer th button {

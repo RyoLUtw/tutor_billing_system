@@ -54,75 +54,92 @@ const settingsView = {
       }
     };
 
+    function previewMarkup(key) {
+      if (key === 'contentFontSizeRem') {
+        return `
+          <div class="setting-preview-inline" data-preview>
+            <p>Regular content text preview</p>
+            <label>
+              Select preview
+              <select>
+                <option>Schedule Management</option>
+              </select>
+            </label>
+          </div>
+        `;
+      }
+      if (key === 'buttonPaddingY' || key === 'buttonPaddingX') {
+        return `
+          <div class="setting-preview-inline" data-preview>
+            <button type="button">Button Preview</button>
+            <button type="button">Modify Time</button>
+          </div>
+        `;
+      }
+      return `
+        <div class="setting-preview-inline" data-preview>
+          <table class="settings-preview-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2026/06/13</td>
+                <td>Scheduled</td>
+              </tr>
+              <tr>
+                <td>2026/06/20</td>
+                <td>Canceled</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
     const container = document.createElement('div');
     container.className = 'settings-panel';
     container.innerHTML = `
       <h1>Settings</h1>
 
       <section class="settings-control" aria-label="Device profile">
-        <h2>Device Profile</h2>
-        <label>PC and mobile use separate backed up display settings.</label>
-        <div class="settings-profile-switch">
-          <button id="pcProfileBtn" type="button">PC</button>
-          <button id="mobileProfileBtn" type="button">Mobile</button>
+        <div>
+          <h2>Device Profile</h2>
+          <label>PC and mobile use separate backed up display settings.</label>
+          <div class="settings-profile-switch">
+            <button id="pcProfileBtn" type="button">PC</button>
+            <button id="mobileProfileBtn" type="button">Mobile</button>
+          </div>
+        </div>
+        <div class="setting-preview-inline" data-preview>
+          <p id="profilePreviewText"></p>
         </div>
       </section>
 
       ${Object.entries(controls).map(([key, config]) => `
         <section class="settings-control" aria-label="${config.title}">
-          <h2>${config.title}</h2>
-          <label>${config.description}</label>
-          <div class="settings-stepper" data-setting="${key}">
-            <button data-action="decrease" type="button" aria-label="Decrease ${config.title}">-</button>
-            <span class="settings-value" data-value="${key}"></span>
-            <button data-action="increase" type="button" aria-label="Increase ${config.title}">+</button>
+          <div>
+            <h2>${config.title}</h2>
+            <label>${config.description}</label>
+            <div class="settings-stepper" data-setting="${key}">
+              <button data-action="decrease" type="button" aria-label="Decrease ${config.title}">-</button>
+              <span class="settings-value" data-value="${key}"></span>
+              <button data-action="increase" type="button" aria-label="Increase ${config.title}">+</button>
+            </div>
           </div>
+          ${previewMarkup(key)}
         </section>
       `).join('')}
-
-      <section class="settings-preview" aria-label="Font size preview">
-        <h2>Preview</h2>
-        <p id="profilePreviewText"></p>
-        <label>
-          Preview Select
-          <select>
-            <option>Current month schedule</option>
-            <option>Parent billing view</option>
-          </select>
-        </label>
-        <div class="settings-preview-actions">
-          <button type="button">Primary Action</button>
-          <button type="button">Secondary Action</button>
-        </div>
-        <table class="settings-preview-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>2026/06/13</td>
-              <td>Scheduled</td>
-              <td><button type="button">Modify Time</button></td>
-            </tr>
-            <tr>
-              <td>2026/06/20</td>
-              <td>Canceled</td>
-              <td><button type="button">Unmark Canceled</button></td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
     `;
     rootElement.appendChild(container);
 
     const pcProfileBtn = container.querySelector('#pcProfileBtn');
     const mobileProfileBtn = container.querySelector('#mobileProfileBtn');
     const profilePreviewText = container.querySelector('#profilePreviewText');
-    const previewSection = container.querySelector('.settings-preview');
+    const previewSections = Array.from(container.querySelectorAll('[data-preview]'));
 
     function clampValue(key, value) {
       const config = controls[key];
@@ -155,11 +172,13 @@ const settingsView = {
 
     function applyPreviewSettings() {
       const settings = settingsByProfile[editingProfile];
-      previewSection.style.setProperty("--content-font-size", `${settings.contentFontSizeRem}rem`);
-      previewSection.style.setProperty("--button-padding-y", `${settings.buttonPaddingY}px`);
-      previewSection.style.setProperty("--button-padding-x", `${settings.buttonPaddingX}px`);
-      previewSection.style.setProperty("--table-cell-padding-y", `${settings.tableCellPaddingY}px`);
-      previewSection.style.setProperty("--table-cell-padding-x", `${settings.tableCellPaddingX}px`);
+      previewSections.forEach((previewSection) => {
+        previewSection.style.setProperty("--content-font-size", `${settings.contentFontSizeRem}rem`);
+        previewSection.style.setProperty("--button-padding-y", `${settings.buttonPaddingY}px`);
+        previewSection.style.setProperty("--button-padding-x", `${settings.buttonPaddingX}px`);
+        previewSection.style.setProperty("--table-cell-padding-y", `${settings.tableCellPaddingY}px`);
+        previewSection.style.setProperty("--table-cell-padding-x", `${settings.tableCellPaddingX}px`);
+      });
     }
 
     function renderAllControls() {
