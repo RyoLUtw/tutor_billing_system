@@ -12,6 +12,21 @@ let archivedStudents = [];          // was: localStorage 'archivedStudentsData'
 let parents = [];                   // was: localStorage 'parentsData'
 let monthlySchedulesByMonth = {};   // was: localStorage 'monthlySchedulesByMonth'
 let salaryReviews = [];             // unchanged (in‑memory derived)
+const DEFAULT_VISUAL_SETTINGS = {
+  contentFontSizeRem: 1.25,
+  buttonPaddingY: 10,
+  buttonPaddingX: 15,
+  tableCellPaddingY: 16,
+  tableCellPaddingX: 18
+};
+const DEFAULT_APP_SETTINGS = {
+  pc: { ...DEFAULT_VISUAL_SETTINGS },
+  mobile: { ...DEFAULT_VISUAL_SETTINGS }
+};
+let appSettings = {
+  pc: { ...DEFAULT_VISUAL_SETTINGS },
+  mobile: { ...DEFAULT_VISUAL_SETTINGS }
+};
 
 // Drive metadata for the hidden JSON file
 let driveMeta = null;
@@ -53,6 +68,71 @@ function setCloudStatus(text, color = "#555") {
   el.style.color = color;
 }
 
+function normalizeVisualSettings(settings, fallback = DEFAULT_VISUAL_SETTINGS) {
+  const rawFontSize = Number(settings?.contentFontSizeRem);
+  const contentFontSizeRem = Number.isFinite(rawFontSize)
+    ? Math.min(1.8, Math.max(0.9, rawFontSize))
+    : fallback.contentFontSizeRem;
+  const buttonPaddingY = normalizeNumericSetting(settings?.buttonPaddingY, fallback.buttonPaddingY, 4, 24, 0);
+  const buttonPaddingX = normalizeNumericSetting(settings?.buttonPaddingX, fallback.buttonPaddingX, 8, 36, 0);
+  const tableCellPaddingY = normalizeNumericSetting(settings?.tableCellPaddingY, fallback.tableCellPaddingY, 6, 32, 0);
+  const tableCellPaddingX = normalizeNumericSetting(settings?.tableCellPaddingX, fallback.tableCellPaddingX, 8, 40, 0);
+
+  return {
+    ...DEFAULT_VISUAL_SETTINGS,
+    ...(fallback && typeof fallback === "object" ? fallback : {}),
+    ...(settings && typeof settings === "object" && !Array.isArray(settings) ? settings : {}),
+    contentFontSizeRem: Number(contentFontSizeRem.toFixed(2)),
+    buttonPaddingY,
+    buttonPaddingX,
+    tableCellPaddingY,
+    tableCellPaddingX
+  };
+}
+
+function normalizeAppSettings(settings) {
+  const source = settings && typeof settings === "object" && !Array.isArray(settings) ? settings : {};
+  const hasProfiles = !!(source.pc || source.mobile || source.desktop);
+
+  if (!hasProfiles) {
+    const shared = normalizeVisualSettings(source);
+    return {
+      pc: { ...shared },
+      mobile: { ...shared }
+    };
+  }
+
+  const pcSource = source.pc || source.desktop || source.mobile || {};
+  const normalizedPc = normalizeVisualSettings(pcSource);
+  const normalizedMobile = normalizeVisualSettings(source.mobile || pcSource, normalizedPc);
+
+  return {
+    pc: normalizedPc,
+    mobile: normalizedMobile
+  };
+}
+
+function normalizeNumericSetting(value, fallback, min, max, decimals) {
+  const rawValue = Number(value);
+  const safeValue = Number.isFinite(rawValue) ? rawValue : fallback;
+  return Number(Math.min(max, Math.max(min, safeValue)).toFixed(decimals));
+}
+
+function applyAppSettings(settings) {
+  appSettings = normalizeAppSettings(settings);
+  const activeSettings = appSettings[getActiveSettingsProfile()];
+  document.documentElement.style.setProperty("--content-font-size", `${activeSettings.contentFontSizeRem}rem`);
+  document.documentElement.style.setProperty("--content-font-size-label", `"${activeSettings.contentFontSizeRem}rem"`);
+  document.documentElement.style.setProperty("--button-padding-y", `${activeSettings.buttonPaddingY}px`);
+  document.documentElement.style.setProperty("--button-padding-x", `${activeSettings.buttonPaddingX}px`);
+  document.documentElement.style.setProperty("--table-cell-padding-y", `${activeSettings.tableCellPaddingY}px`);
+  document.documentElement.style.setProperty("--table-cell-padding-x", `${activeSettings.tableCellPaddingX}px`);
+}
+
+function getActiveSettingsProfile() {
+  return window.matchMedia("(max-width: 760px)").matches ? "mobile" : "pc";
+}
+
 // Returns the exact bundle shape we persist to Drive's hidden file
 function getCurrentBundle() {
   return makeBundleFromState();
@@ -60,12 +140,14 @@ function getCurrentBundle() {
 
 // One-file import handler: apply bundle and queue a Drive save
 async function handleOneFileImport(bundle) {
+  const includesSettings = !!(bundle && (bundle.appSettings || bundle.settings));
   // Defensive defaults to avoid undefined keys
   const safe = {
     studentsData: Array.isArray(bundle?.studentsData) ? bundle.studentsData : [],
     archivedStudentsData: Array.isArray(bundle?.archivedStudentsData) ? bundle.archivedStudentsData : [],
     parentsData: Array.isArray(bundle?.parentsData) ? bundle.parentsData : [],
-    months: (bundle && typeof bundle.months === "object" && !Array.isArray(bundle.months)) ? bundle.months : {}
+    months: (bundle && typeof bundle.months === "object" && !Array.isArray(bundle.months)) ? bundle.months : {},
+    appSettings: includesSettings ? normalizeAppSettings(bundle?.appSettings || bundle?.settings) : appSettings
   };
   applyBundleToState(safe);      // seeds localStorage + memory
   queueCloudSave();              // debounced save to hidden Drive file
@@ -95,7 +177,8 @@ function applyBundleToState(bundle) {
     archivedStudentsData: Array.isArray(bundle?.archivedStudentsData) ? bundle.archivedStudentsData : [],
     parentsData: Array.isArray(bundle?.parentsData) ? bundle.parentsData : [],
     // you currently store schedules under "months" in Drive
-    monthlySchedulesByMonth: (bundle && typeof bundle.months === "object" && !Array.isArray(bundle.months)) ? bundle.months : {}
+    monthlySchedulesByMonth: (bundle && typeof bundle.months === "object" && !Array.isArray(bundle.months)) ? bundle.months : {},
+    appSettings: normalizeAppSettings(bundle?.appSettings || bundle?.settings)
   };
 
   // 1) Seed localStorage so legacy reads stay working
@@ -104,6 +187,7 @@ function applyBundleToState(bundle) {
   localStorage.setItem("archivedStudentsData", JSON.stringify(safe.archivedStudentsData));
   localStorage.setItem("parentsData", JSON.stringify(safe.parentsData));
   localStorage.setItem("monthlySchedulesByMonth", JSON.stringify(safe.monthlySchedulesByMonth));
+  localStorage.setItem("appSettings", JSON.stringify(safe.appSettings));
   _suppressPatch = false;
 
   // 2) Mirror into in-memory state used by your views
@@ -111,6 +195,7 @@ function applyBundleToState(bundle) {
   archivedStudents = safe.archivedStudentsData;
   parents = safe.parentsData;
   monthlySchedulesByMonth = safe.monthlySchedulesByMonth;
+  applyAppSettings(safe.appSettings);
 }
 
 
@@ -119,7 +204,8 @@ function makeBundleFromState() {
     studentsData: students,
     archivedStudentsData: archivedStudents,
     parentsData: parents,
-    months: monthlySchedulesByMonth
+    months: monthlySchedulesByMonth,
+    appSettings
   };
 }
 
@@ -132,7 +218,8 @@ async function handleLegacyImport(bundle) {
       driveMeta = meta;
     }
     // Seed localStorage + memory (your helper does both safely)
-    applyBundleToState(bundle);
+    const includesSettings = !!(bundle && (bundle.appSettings || bundle.settings));
+    applyBundleToState(includesSettings ? bundle : { ...bundle, appSettings });
 
     // Persist to Drive (debounced)
     queueCloudSave();
@@ -152,7 +239,8 @@ async function handleLegacyImport(bundle) {
     "studentsData",
     "archivedStudentsData",
     "parentsData",
-    "monthlySchedulesByMonth"
+    "monthlySchedulesByMonth",
+    "appSettings"
   ]);
   const _origSet = localStorage.setItem.bind(localStorage);
 
@@ -167,6 +255,7 @@ async function handleLegacyImport(bundle) {
       else if (key === "archivedStudentsData") archivedStudents = JSON.parse(value || "[]");
       else if (key === "parentsData") parents = JSON.parse(value || "[]");
       else if (key === "monthlySchedulesByMonth") monthlySchedulesByMonth = JSON.parse(value || "{}");
+      else if (key === "appSettings") applyAppSettings(JSON.parse(value || "{}"));
     } catch (e) {
       console.warn("[Drive] JSON parse failed for key:", key, e);
     }
@@ -263,6 +352,21 @@ function updateParents(newParents) {
   queueCloudSave();
 }
 
+function updateAppSettings(profile, newSettings) {
+  const settingsProfile = profile === "mobile" ? "mobile" : "pc";
+  appSettings = normalizeAppSettings(appSettings);
+  const nextSettings = {
+    ...appSettings,
+    [settingsProfile]: normalizeVisualSettings({
+      ...appSettings[settingsProfile],
+      ...(newSettings || {})
+    }, appSettings[settingsProfile])
+  };
+  appSettings = normalizeAppSettings(nextSettings);
+  applyAppSettings(appSettings);
+  localStorage.setItem("appSettings", JSON.stringify(appSettings));
+}
+
 // 4) Main container and router (unchanged except: no more localStorage re-fetch)
 const main = document.getElementById('app');
 
@@ -270,13 +374,19 @@ function router() {
   const hash = window.location.hash || '#/profile';
   main.innerHTML = ''; // clear current content
 
+  // Manage route-specific navigation styles.
+  document.querySelectorAll('nav a[href]').forEach((link) => {
+    const isActive = link.getAttribute('href') === hash;
+    link.style.fontWeight = isActive ? '800' : '700';
+    link.style.borderBottomColor = isActive ? 'var(--primary)' : 'transparent';
+    link.style.color = isActive ? 'var(--primary)' : '';
+  });
+
   // NEW: manage the Import / Restore tab here to match current route/state
   const importTab = document.getElementById('tab-import');
   if (importTab) {
     // show the tab only when we have Drive metadata (i.e., signed in & loaded)
-    importTab.style.display = driveMeta ? 'inline-block' : 'none';
-    // simple "active" hint to match your styling approach
-    importTab.style.fontWeight = (hash === '#/import') ? '700' : '400';
+    importTab.style.display = driveMeta ? '' : 'none';
   }
 
   if (hash === '#/profile') {
@@ -334,6 +444,13 @@ function router() {
       getBundle: getCurrentBundle            // for "download to device"
     });
   }
+  else if (hash === "#/settings") {
+    settingsView.render(main, {
+      appSettings,
+      activeProfile: getActiveSettingsProfile(),
+      onSettingsUpdate: updateAppSettings
+    });
+  }
   
   else {
     window.location.hash = '#/profile';
@@ -344,12 +461,23 @@ function router() {
 
 // 5) Wire router events (unchanged)
 window.addEventListener('hashchange', router);
+window.matchMedia("(max-width: 760px)").addEventListener("change", () => {
+  applyAppSettings(appSettings);
+  if (window.location.hash === "#/settings") {
+    router();
+  }
+});
 
 // 6) App boot: initialize Google sign‑in, then load from Drive, then render
 const CLIENT_ID = "332987792434-u7r3hdl46asbqo0si3ngqu46kdbgf2at.apps.googleusercontent.com"; // <--- REPLACE THIS
 
 window.addEventListener('load', async () => {
   initInactivityWatchers();
+  try {
+    applyAppSettings(normalizeAppSettings(JSON.parse(localStorage.getItem("appSettings") || "{}")));
+  } catch (e) {
+    applyAppSettings(DEFAULT_APP_SETTINGS);
+  }
 
   // Hide all tabs by default; we'll show them after sign-in succeeds
   const navEl = document.querySelector('nav');
