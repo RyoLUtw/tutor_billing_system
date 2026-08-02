@@ -48,6 +48,10 @@ const monthlyView = {
         <tbody></tbody>
       </table>
 
+      <div>
+        <button id="addScheduledClassBtn">Add New Scheduled Class</button>
+      </div>
+
       <!-- Summary section without temporary modifier input -->
       <h2>Summary</h2>
       <div>
@@ -117,6 +121,44 @@ const monthlyView = {
         <button id="saveTimeModifierBtn">Save</button>
         <button id="cancelTimeModifierBtn">Cancel</button>
       </div>
+
+      <div id="addScheduledClassModal" style="
+          display:none;
+          position:fixed;
+          inset:0;
+          background:rgba(15,23,42,0.45);
+          z-index:10000;
+          align-items:center;
+          justify-content:center;
+          padding:16px;">
+        <div style="
+            width:min(92vw,560px);
+            max-height:calc(100vh - 32px);
+            overflow:auto;
+            background:#fff;
+            border:1px solid #b9c6d6;
+            border-radius:8px;
+            padding:18px;
+            box-shadow:0 20px 50px rgba(15,23,42,0.22);">
+          <h3>Add New Scheduled Class</h3>
+          <p id="addClassMonthHint" style="margin:0 0 12px;"></p>
+          <div>
+            <label>Date:</label>
+            <input type="date" id="addClassDateInput" />
+            <button id="addClassDateBtn">Add Date</button>
+          </div>
+          <div id="selectedClassDates" style="margin:10px 0;"></div>
+          <div>
+            <label>Length of Session (hours):</label>
+            <input type="number" id="addClassLengthInput" min="0.1" step="0.1" />
+          </div>
+          <p id="addClassValidationMsg" style="color:#b42318; min-height:1.5em;"></p>
+          <div style="display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;">
+            <button id="confirmAddClassBtn">Confirm</button>
+            <button id="cancelAddClassBtn">Cancel</button>
+          </div>
+        </div>
+      </div>
     `;
     rootElement.appendChild(container);
 
@@ -131,6 +173,7 @@ const monthlyView = {
     const profileModifierDisplay = container.querySelector('#profileModifierDisplay');
     const totalChargeDisplay = container.querySelector('#totalChargeDisplay');
     const updateChargeBtn = container.querySelector('#updateChargeBtn');
+    const addScheduledClassBtn = container.querySelector('#addScheduledClassBtn');
     const downloadJsonBtn = container.querySelector('#downloadJsonBtn');
     const uploadJsonBtn = container.querySelector('#uploadJsonBtn');
     const uploadJsonInput = container.querySelector('#uploadJsonInput');
@@ -147,9 +190,20 @@ const monthlyView = {
     const timeModifierInput = container.querySelector('#timeModifierInput');
     const saveTimeModifierBtn = container.querySelector('#saveTimeModifierBtn');
     const cancelTimeModifierBtn = container.querySelector('#cancelTimeModifierBtn');
+    const addScheduledClassModal = container.querySelector('#addScheduledClassModal');
+    const addClassMonthHint = container.querySelector('#addClassMonthHint');
+    const addClassDateInput = container.querySelector('#addClassDateInput');
+    const addClassDateBtn = container.querySelector('#addClassDateBtn');
+    const selectedClassDates = container.querySelector('#selectedClassDates');
+    const addClassLengthInput = container.querySelector('#addClassLengthInput');
+    const addClassValidationMsg = container.querySelector('#addClassValidationMsg');
+    const confirmAddClassBtn = container.querySelector('#confirmAddClassBtn');
+    const cancelAddClassBtn = container.querySelector('#cancelAddClassBtn');
 
     // We'll keep the schedule in the original structure (an array) so that old JSON works.
     let currentSchedule = null; 
+    let activeIndex = null;
+    let selectedDatesForNewClasses = [];
 
     // 4) Populate student dropdown
     students.forEach((s, i) => {
@@ -168,6 +222,34 @@ const monthlyView = {
     function getDayNumber(dayString) {
       const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       return days.findIndex(d => d.toLowerCase() === dayString.toLowerCase());
+    }
+
+    function getManagedMonthInfo() {
+      const chosenMonth = parseInt(monthInput.value, 10);
+      const chosenYear = parseInt(yearInput.value, 10);
+      if (!chosenMonth || !chosenYear) return null;
+      const monthValue = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
+      const firstDate = `${monthValue}-01`;
+      const lastDay = new Date(chosenYear, chosenMonth, 0).getDate();
+      const lastDate = `${monthValue}-${String(lastDay).padStart(2, '0')}`;
+      const monthName = new Date(chosenYear, chosenMonth - 1, 1).toLocaleString(undefined, {
+        month: 'long',
+        year: 'numeric'
+      });
+      return { chosenMonth, chosenYear, monthValue, firstDate, lastDate, monthName };
+    }
+
+    function dateInputToScheduleDate(value) {
+      return value.replace(/-/g, '/');
+    }
+
+    function scheduleDateToDateInput(value) {
+      return String(value || '').replace(/\//g, '-');
+    }
+
+    function isDateInManagedMonth(value) {
+      const monthInfo = getManagedMonthInfo();
+      return !!monthInfo && value >= monthInfo.firstDate && value <= monthInfo.lastDate;
     }
 
     // 7) Generate a new schedule array for a student; then return it (old JSON structure)
@@ -310,6 +392,118 @@ const monthlyView = {
         datesTableBody.appendChild(row);
       });
     }
+
+    function openAddScheduledClassModal() {
+      const monthInfo = getManagedMonthInfo();
+      if (!monthInfo || studentSelect.value === '') {
+        alert('Please select a student and valid month/year first.');
+        return;
+      }
+      selectedDatesForNewClasses = [];
+      addClassDateInput.min = monthInfo.firstDate;
+      addClassDateInput.max = monthInfo.lastDate;
+      addClassDateInput.value = monthInfo.firstDate;
+      addClassLengthInput.value = students[studentSelect.value].sessionLength || '';
+      addClassMonthHint.textContent = `Choose date(s) within ${monthInfo.monthName}.`;
+      addScheduledClassModal.style.display = 'flex';
+      renderSelectedNewClassDates();
+      validateAddScheduledClassForm();
+    }
+
+    function closeAddScheduledClassModal() {
+      addScheduledClassModal.style.display = 'none';
+      selectedDatesForNewClasses = [];
+    }
+
+    function renderSelectedNewClassDates() {
+      selectedClassDates.innerHTML = '';
+      if (selectedDatesForNewClasses.length === 0) {
+        selectedClassDates.textContent = 'No dates selected.';
+        return;
+      }
+      selectedDatesForNewClasses.forEach(dateValue => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.textContent = `${dateValue} x`;
+        chip.title = 'Remove this date';
+        chip.style.marginRight = '6px';
+        chip.style.marginBottom = '6px';
+        chip.addEventListener('click', () => {
+          selectedDatesForNewClasses = selectedDatesForNewClasses.filter(d => d !== dateValue);
+          renderSelectedNewClassDates();
+          validateAddScheduledClassForm();
+        });
+        selectedClassDates.appendChild(chip);
+      });
+    }
+
+    function validateAddScheduledClassForm() {
+      const monthInfo = getManagedMonthInfo();
+      const length = parseFloat(addClassLengthInput.value);
+      const outsideDate = selectedDatesForNewClasses.find(dateValue => !isDateInManagedMonth(dateValue));
+      let message = '';
+      if (!monthInfo) {
+        message = 'Please enter a valid month and year first.';
+      } else if (selectedDatesForNewClasses.length === 0) {
+        message = 'Please add at least one date.';
+      } else if (outsideDate) {
+        message = `Please choose a date within ${monthInfo.monthName}.`;
+      } else if (!Number.isFinite(length) || length <= 0) {
+        message = 'Please enter a session length greater than 0.';
+      }
+      addClassValidationMsg.textContent = message;
+      confirmAddClassBtn.disabled = !!message;
+    }
+
+    addClassDateBtn.addEventListener('click', () => {
+      const dateValue = addClassDateInput.value;
+      if (!dateValue) {
+        validateAddScheduledClassForm();
+        return;
+      }
+      if (!selectedDatesForNewClasses.includes(dateValue)) {
+        selectedDatesForNewClasses.push(dateValue);
+        selectedDatesForNewClasses.sort();
+      }
+      renderSelectedNewClassDates();
+      validateAddScheduledClassForm();
+    });
+
+    addClassDateInput.addEventListener('change', () => {
+      validateAddScheduledClassForm();
+    });
+
+    addClassLengthInput.addEventListener('input', validateAddScheduledClassForm);
+
+    confirmAddClassBtn.addEventListener('click', () => {
+      validateAddScheduledClassForm();
+      if (confirmAddClassBtn.disabled) return;
+      const student = students[studentSelect.value];
+      const requestedLength = parseFloat(addClassLengthInput.value);
+      const baseLength = parseFloat(student.sessionLength) || 0;
+      const timeModified = Number((requestedLength - baseLength).toFixed(2));
+      selectedDatesForNewClasses.forEach(dateValue => {
+        currentSchedule.push({
+          date: dateInputToScheduleDate(dateValue),
+          canceled: false,
+          violation: false,
+          makeup: null,
+          "time modified": timeModified
+        });
+      });
+      currentSchedule.sort((a, b) => {
+        const aDate = scheduleDateToDateInput(a.date);
+        const bDate = scheduleDateToDateInput(b.date);
+        return aDate > bDate ? 1 : (aDate < bDate ? -1 : 0);
+      });
+      persistCurrentSchedule();
+      renderTable();
+      recalcCharge();
+      closeAddScheduledClassModal();
+    });
+
+    addScheduledClassBtn.addEventListener('click', openAddScheduledClassModal);
+    cancelAddClassBtn.addEventListener('click', closeAddScheduledClassModal);
 
     // 11) "Mark Cancelled" popup logic
     function openCancellationPopup(index, evt) {

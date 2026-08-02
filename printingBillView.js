@@ -323,6 +323,75 @@ const printingBillView = {
       if (originalParent) generateBill(originalParent, { skipAlert: true });
     });
 
+    function getStudentParents(studentId) {
+      return parents
+        .filter(parent => Array.isArray(parent.children) && parent.children.includes(studentId))
+        .map(parent => parent.name);
+    }
+
+    function getSessionStatusText(item) {
+      if (item.canceled) return 'canceled';
+      const timeModified = Number(item["time modified"] || 0);
+      if (timeModified !== 0) return 'time modified';
+      return 'scheduled';
+    }
+
+    function buildAllStudentsSessionStatusText(yearMonth) {
+      const monthMap = monthlySchedulesByMonth[yearMonth] || {};
+      const allStudents = students.concat(archivedStudents);
+      const allStudentIds = Object.keys(monthMap).sort((a, b) => {
+        const aStudent = allStudents.find(student => student.id === a);
+        const bStudent = allStudents.find(student => student.id === b);
+        const aName = aStudent ? aStudent.name : a;
+        const bName = bStudent ? bStudent.name : b;
+        return aName.localeCompare(bName);
+      });
+      const lines = [
+        `month\t${yearMonth}`,
+        'student_id\tstudent_name\tparent_names\tsession_date\tstatus\tcanceled\tviolation\tmakeup_date\tmakeup_time\tbase_session_length_hours\ttime_modified_hours\teffective_session_length_hours'
+      ];
+
+      allStudentIds.forEach(studentId => {
+        const student = allStudents.find(s => s.id === studentId) || {
+          id: studentId,
+          name: 'Unknown Student',
+          sessionLength: 0
+        };
+        const scheduleObj = monthMap[studentId];
+        const schedule = Array.isArray(scheduleObj) ? scheduleObj : scheduleObj?.classes;
+        if (!Array.isArray(schedule)) return;
+        const parentNames = getStudentParents(studentId).join(', ');
+        const baseSessionLength = Number(student.sessionLength || 0);
+        schedule
+          .slice()
+          .sort((a, b) => scheduleDateToSortable(a.date).localeCompare(scheduleDateToSortable(b.date)))
+          .forEach(item => {
+            const timeModified = Number(item["time modified"] || 0);
+            const effectiveSessionLength = baseSessionLength + timeModified;
+            lines.push([
+              student.id,
+              student.name,
+              parentNames,
+              item.date || '',
+              getSessionStatusText(item),
+              item.canceled ? 'yes' : 'no',
+              item.violation ? 'yes' : 'no',
+              item.makeup?.date || '',
+              item.makeup?.time || '',
+              baseSessionLength,
+              timeModified,
+              Number(effectiveSessionLength.toFixed(2))
+            ].map(value => String(value).replace(/\t/g, ' ')).join('\t'));
+          });
+      });
+
+      return lines.join('\n') + '\n';
+    }
+
+    function scheduleDateToSortable(dateValue) {
+      return String(dateValue || '').replace(/\//g, '-');
+    }
+
     downloadZipBtn.addEventListener('click', async () => {
       const chosenMonth = parseInt(monthInput.value, 10);
       const chosenYear = parseInt(yearInput.value, 10);
@@ -344,6 +413,7 @@ const printingBillView = {
       const originalParent = parentSelect.value;
       const mm = String(chosenMonth).padStart(2, '0');
       const zip = new JSZip();
+      zip.file(`${chosenYear}_${mm}_all_students_session_status.txt`, buildAllStudentsSessionStatusText(ym));
 
       for (const parent of parentsWithSchedules) {
         parentSelect.value = parent.id;
