@@ -3,39 +3,719 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SPA Tutor Session Management</title>
   <!-- Load any styles or libraries you need here -->
   <style>
-    /* Quick styling for navigation */
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --surface: #ffffff;
+      --surface-muted: #eef2f7;
+      --border: #d8e0ea;
+      --border-strong: #b9c6d6;
+      --text: #172033;
+      --muted: #5d6b80;
+      --primary: #1663d8;
+      --primary-hover: #0f4fac;
+      --danger: #b42318;
+      --success: #147a4f;
+      --shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+      --tap-size: 44px;
+      --content-font-size: 1.25rem;
+      --content-font-size-label: "1.25rem";
+      --button-padding-y: 10px;
+      --button-padding-x: 15px;
+      --table-cell-padding-y: 16px;
+      --table-cell-padding-x: 18px;
+      font-family: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.5;
+      text-size-adjust: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(180deg, #ffffff 0, var(--bg) 220px),
+        var(--bg);
+      color: var(--text);
+    }
+
+    body::before {
+      content: "Tutor Billing System";
+      display: block;
+      padding: 22px clamp(16px, 4vw, 40px) 8px;
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      min-height: var(--tap-size);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      padding: 9px 14px;
+      cursor: pointer;
+      font-weight: 650;
+      transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: #f8fafc;
+      border-color: #8fa3bc;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    #signin,
+    #saveStudentBtn,
+    #updateStudentBtn,
+    #saveParentBtn,
+    #updateParentBtn,
+    #generateBtn,
+    #generateBillBtn,
+    #retrieveBtn,
+    #confirmBtn,
+    #updateChargeBtn,
+    #imp-do,
+    #one-import,
+    #one-export-drive {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    #signin:hover,
+    #saveStudentBtn:hover,
+    #updateStudentBtn:hover,
+    #saveParentBtn:hover,
+    #updateParentBtn:hover,
+    #generateBtn:hover,
+    #generateBillBtn:hover,
+    #retrieveBtn:hover,
+    #confirmBtn:hover,
+    #updateChargeBtn:hover,
+    #imp-do:hover,
+    #one-import:hover,
+    #one-export-drive:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    #clearLocalStorageBtn,
+    .archiveBtn {
+      border-color: #f1aaa4;
+      color: var(--danger);
+    }
+
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      width: min(100%, 24rem);
+      min-height: var(--tap-size);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      padding: 9px 11px;
+      font-size: var(--content-font-size);
+    }
+
+    input[type="file"] {
+      width: min(100%, 34rem);
+      min-height: auto;
+      padding: 9px;
+      background: var(--surface-muted);
+    }
+
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      margin: 0 6px 0 0;
+      vertical-align: middle;
+      accent-color: var(--primary);
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 4px 8px 4px 0;
+      color: var(--muted);
+      font-size: var(--content-font-size);
+      font-weight: 650;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: var(--text);
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: clamp(1.65rem, 3vw, 2.35rem);
+    }
+
+    h2 {
+      margin: 28px 0 12px;
+      font-size: clamp(1.2rem, 2vw, 1.45rem);
+    }
+
+    h3 {
+      margin: 22px 0 10px;
+      font-size: 1.08rem;
+    }
+
+    p {
+      color: var(--muted);
+      font-size: var(--content-font-size);
+    }
+
+    hr {
+      border: 0;
+      border-top: 1px solid var(--border);
+      margin: 28px 0;
+    }
+
+    /* Account and cloud status */
+    #auth-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin: 0 clamp(16px, 4vw, 40px) 14px !important;
+      padding: 12px !important;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    #auth-status,
+    #cloud-status {
+      margin-left: 0 !important;
+      color: var(--muted) !important;
+      overflow-wrap: anywhere;
+    }
+
+    /* Navigation */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 0 clamp(16px, 4vw, 40px);
+      background: rgba(245, 247, 251, 0.92);
+      border-block: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+
     nav ul {
       list-style-type: none;
       padding: 0;
       margin: 0;
       display: flex;
-      gap: 10px;
-    }
-
-    nav ul li {
-      display: inline-block;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
     }
 
     nav ul li a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 72px;
       text-decoration: none;
-      padding: 6px 12px;
-      background-color: #ddd;
+      padding: 0 21px;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 1.5rem;
+      font-weight: 700;
     }
 
     nav ul li a:hover {
-      background-color: #bbb;
+      color: var(--primary);
+      background-color: rgba(22, 99, 216, 0.07);
     }
 
-    /* A minimal style for the "main" area */
+    nav ul li a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid rgba(22, 99, 216, 0.25);
+      outline-offset: 2px;
+    }
+
+    /* Main workspace */
     #app {
-      margin: 20px;
+      width: min(100% - 32px, 1180px);
+      margin: 22px auto 44px;
     }
 
-    /* Position the popup (if used in monthlyView, etc.) absolutely */
-    /* #cancellationPopup or other popups can also get their own styling. */
+    #app > div,
+    #app > section {
+      padding: clamp(16px, 3vw, 28px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    #app > div > div,
+    #app section > div {
+      margin-block: 10px;
+    }
+
+    #studentCheckboxes,
+    #app div:has(> input[type="checkbox"]) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+    }
+
+    #studentCheckboxes > div {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    #singleMonthUI,
+    #multiMonthUI,
+    #makeupDetails,
+    #reviewContainer,
+    #billContainer,
+    #tableContainer,
+    #scheduleCheckContainer {
+      max-width: 100%;
+    }
+
+    table {
+      display: block;
+      width: 100% !important;
+      max-width: 100%;
+      overflow-x: auto;
+      border: 0 !important;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    thead,
+    tbody,
+    tr {
+      width: auto;
+      min-width: 0;
+    }
+
+    td {
+      min-width: 0;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      white-space: nowrap;
+      font-size: var(--content-font-size);
+    }
+
+    th {
+      min-width: 0;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--surface-muted);
+      color: #344256;
+      font-size: 1.35rem;
+      font-weight: 750;
+    }
+
+    th:first-child,
+    td:first-child {
+      position: sticky;
+      left: 0;
+      min-width: 11ch;
+      z-index: 2;
+      background: inherit;
+      box-shadow: 1px 0 0 var(--border);
+    }
+
+    th:first-child {
+      z-index: 4;
+      background: var(--surface-muted);
+    }
+
+    tbody tr:nth-child(even) td {
+      background: #fbfcfe;
+    }
+
+    tbody tr:nth-child(odd) td {
+      background: var(--surface);
+    }
+
+    td:last-child,
+    th:last-child {
+      width: 1%;
+      min-width: max-content;
+      white-space: nowrap;
+    }
+
+    td button {
+      width: auto !important;
+      min-height: 54px;
+      padding: var(--button-padding-y) var(--button-padding-x);
+      margin: 2px 4px 2px 0 !important;
+      font-size: var(--content-font-size);
+      white-space: nowrap;
+    }
+
+    #tableContainer th button {
+      width: 44px !important;
+      min-width: 44px;
+      max-width: 44px;
+      height: 44px;
+      min-height: 44px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      vertical-align: middle;
+    }
+
+    .settings-panel {
+      display: grid;
+      gap: 24px;
+    }
+
+    .settings-control {
+      display: grid;
+      grid-template-columns: minmax(260px, 520px) minmax(220px, 1fr);
+      gap: 16px;
+      align-items: start;
+      max-width: 980px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-stepper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .settings-stepper button {
+      width: 52px;
+      min-width: 52px;
+      height: 52px;
+      min-height: 52px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      line-height: 1;
+    }
+
+    .settings-profile-switch {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .settings-profile-switch button {
+      min-width: 120px;
+    }
+
+    .setting-preview-inline {
+      display: grid;
+      gap: 10px;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .setting-preview-inline p {
+      margin: 0;
+    }
+
+    .settings-value {
+      min-width: 112px;
+      font-size: var(--content-font-size);
+      font-weight: 750;
+      color: var(--text);
+      text-align: center;
+    }
+
+    .settings-preview {
+      display: grid;
+      gap: 14px;
+      max-width: 840px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    .settings-preview-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .settings-preview-table {
+      margin-top: 4px;
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      background: #fbfcfe;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    #reviewContainer,
+    #billContainer {
+      overflow-x: auto;
+    }
+
+    #billContainer > div {
+      border-color: var(--border-strong) !important;
+      border-radius: var(--radius);
+      padding: 16px;
+      background: #fff;
+    }
+
+    #archiveModal,
+    #cancellationPopup,
+    #timeModifierPopup,
+    #scheduleCheckModal {
+      z-index: 1000;
+    }
+
+    #cancellationPopup,
+    #timeModifierPopup,
+    #scheduleCheckModal {
+      max-width: min(92vw, 520px);
+      border: 1px solid var(--border-strong) !important;
+      border-radius: var(--radius);
+      background: #fff !important;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.22);
+    }
+
+    @media (max-width: 760px) {
+      body::before {
+        padding-top: 16px;
+      }
+
+      #auth-bar {
+        align-items: stretch;
+      }
+
+      #auth-bar button,
+      #app button {
+        width: 100%;
+      }
+
+      .settings-stepper {
+        display: grid;
+        grid-template-columns: 52px minmax(90px, 1fr) 52px;
+      }
+
+      .settings-stepper button {
+        width: 52px !important;
+      }
+
+      nav {
+        padding-inline: 10px;
+      }
+
+      nav ul li a {
+        min-height: 69px;
+        padding-inline: 18px;
+        font-size: 1.41rem;
+      }
+
+      #app {
+        width: min(100% - 20px, 1180px);
+        margin-top: 14px;
+      }
+
+      #app > div,
+      #app > section {
+        padding: 14px;
+      }
+
+      #app > div > div,
+      #singleMonthUI,
+      #multiMonthUI,
+      #makeupDetails,
+      #app section > div {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
+        align-items: stretch;
+      }
+
+      label {
+        width: 100%;
+        margin: 2px 0 0;
+      }
+
+      input:not([type="checkbox"]):not([type="radio"]),
+      select,
+      textarea,
+      input[type="file"] {
+        width: 100%;
+      }
+
+      #studentCheckboxes {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      td {
+        min-width: 0;
+        padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+        font-size: var(--content-font-size);
+      }
+
+      th {
+        min-width: 0;
+        padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+      }
+
+      td:last-child,
+      th:last-child {
+        width: 1%;
+        min-width: max-content;
+      }
+
+      td button {
+        width: auto !important;
+        min-height: 54px;
+        font-size: var(--content-font-size);
+      }
+
+      .settings-control {
+        grid-template-columns: 1fr;
+      }
+
+      #tableContainer th button {
+        width: 44px !important;
+        min-width: 44px;
+        max-width: 44px;
+      }
+
+      #cancellationPopup,
+      #timeModifierPopup,
+      #scheduleCheckModal {
+        position: fixed !important;
+        top: 50% !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translate(-50%, -50%) !important;
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+        overflow: auto;
+        padding: 16px !important;
+      }
+
+      #archiveModal > div {
+        width: calc(100vw - 24px) !important;
+        max-height: calc(100vh - 24px);
+        overflow: auto;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      body::before,
+      #auth-bar,
+      nav,
+      button {
+        display: none !important;
+      }
+
+      #app {
+        width: 100%;
+        margin: 0;
+      }
+
+      #app > div,
+      #app > section {
+        border: 0;
+        box-shadow: none;
+        padding: 0;
+      }
+
+      table {
+        display: table;
+        overflow: visible;
+      }
+    }
   </style>
 
   <!-- Optionally load html2canvas or other libs here if needed globally -->
@@ -62,6 +742,7 @@
       <li><a href="#/daysoff">Days Off</a></li>
       <li><a href="#/teacher">Teacher Salary</a></li>
       <li><a href="#/printbill">Print Bill</a></li>
+      <li><a id="tab-settings" href="#/settings">Settings</a></li>
       <li><a id="tab-import" href="#/import">Import/Export</a></li>
 
     </ul>
@@ -77,6 +758,7 @@
   <script src="parentProfileView.js"></script>
   <script src="printingBillView.js"></script>
   <script src="daysOffView.js"></script>
+  <script src="settingsView.js"></script>
 
   <!-- Finally load the router/app logic -->
   <script type="module" src="./app.js"></script>

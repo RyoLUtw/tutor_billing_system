@@ -33,6 +33,9 @@ export default {
 
             <label>Schedules JSON</label>
             <input type="file" id="imp-schedules" accept=".json" />
+
+            <label>Settings JSON</label>
+            <input type="file" id="imp-settings" accept=".json" />
           </div>
 
           <div style="margin-top:16px;">
@@ -47,6 +50,7 @@ export default {
               <li><b>Students:</b> <code>{studentsData:[], archivedStudentsData:[]}</code>, <code>{active:[], archived:[]}</code>, or <code>[...]</code></li>
               <li><b>Parents:</b> <code>{parentsData:[]}</code> or <code>[...]</code></li>
               <li><b>Schedules:</b> <code>{monthlySchedulesByMonth:{}}</code>, <code>{months:{}}</code>, or a top-level map <code>{"YYYY-MM": {...}}</code></li>
+              <li><b>Settings:</b> <code>{appSettings:{pc:{...}, mobile:{...}}}</code>, <code>{settings:{...}}</code>, or an older raw settings object</li>
             </ul>
           </details>
         </section>
@@ -55,7 +59,7 @@ export default {
         <section id="panel-one" style="display:none;">
           <p style="color:#555;margin:0 0 12px;">
             The one-file bundle is exactly what the app stores in Drive: 
-            <code>{ studentsData, archivedStudentsData, parentsData, months }</code>.
+            <code>{ studentsData, archivedStudentsData, parentsData, months, appSettings }</code>.
           </p>
 
           <!-- One-file import -->
@@ -111,6 +115,7 @@ export default {
     const $S = rootEl.querySelector('#imp-students');
     const $P = rootEl.querySelector('#imp-parents');
     const $M = rootEl.querySelector('#imp-schedules');
+    const $Settings = rootEl.querySelector('#imp-settings');
 
     const readJson = (inputEl) => new Promise((resolve) => {
       const f = inputEl.files && inputEl.files[0];
@@ -179,7 +184,55 @@ export default {
       return {};
     }
 
-    $clr.onclick = () => { $S.value=''; $P.value=''; $M.value=''; $msg.textContent=''; };
+    function normalizeSettingsFile(s) {
+      const source = s?.appSettings || s?.settings || s;
+      if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        return {};
+      }
+
+      const hasProfiles = !!(source.pc || source.mobile || source.desktop);
+      if (hasProfiles) {
+        const out = {};
+        const pc = normalizeVisualSettings(source.pc || source.desktop);
+        const mobile = normalizeVisualSettings(source.mobile);
+        if (Object.keys(pc).length) out.pc = pc;
+        if (Object.keys(mobile).length) out.mobile = mobile;
+        return out;
+      }
+
+      const shared = normalizeVisualSettings(source);
+      if (!Object.keys(shared).length) return {};
+      return {
+        pc: shared,
+        mobile: { ...shared }
+      };
+    }
+
+    function normalizeVisualSettings(source) {
+      if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        return {};
+      }
+      const out = {};
+      const rawFontSize = Number(source.contentFontSizeRem);
+      if (Number.isFinite(rawFontSize)) {
+        out.contentFontSizeRem = Number(Math.min(1.8, Math.max(0.9, rawFontSize)).toFixed(2));
+      }
+      const numericSettings = [
+        ["buttonPaddingY", 4, 24],
+        ["buttonPaddingX", 8, 36],
+        ["tableCellPaddingY", 6, 32],
+        ["tableCellPaddingX", 8, 40]
+      ];
+      numericSettings.forEach(([key, min, max]) => {
+        const value = Number(source[key]);
+        if (Number.isFinite(value)) {
+          out[key] = Number(Math.min(max, Math.max(min, value)).toFixed(0));
+        }
+      });
+      return out;
+    }
+
+    $clr.onclick = () => { $S.value=''; $P.value=''; $M.value=''; $Settings.value=''; $msg.textContent=''; };
 
     $btn.onclick = async () => {
       if (typeof onImport !== 'function') {
@@ -190,14 +243,19 @@ export default {
       const s = await readJson($S);
       const p = await readJson($P);
       const m = await readJson($M);
-      if (s?.__parseError || p?.__parseError || m?.__parseError) {
+      const settings = await readJson($Settings);
+      if (s?.__parseError || p?.__parseError || m?.__parseError || settings?.__parseError) {
         $msg.textContent = 'One or more files could not be parsed.'; $msg.style.color = '#c00'; return;
       }
 
       const { studentsData, archivedStudentsData } = normalizeStudentsFile(s);
       const parentsData = normalizeParentsFile(p);
       const months = normalizeSchedulesFile(m);
+      const appSettings = normalizeSettingsFile(settings);
       const bundle = { studentsData, archivedStudentsData, parentsData, months };
+      if (Object.keys(appSettings).length) {
+        bundle.appSettings = appSettings;
+      }
 
       try {
         $msg.textContent = 'Importing…';
@@ -229,6 +287,7 @@ export default {
       reader.onload = async () => {
         try {
           const obj = JSON.parse(reader.result);
+          const importedSettings = normalizeSettingsFile(obj);
           // Minimal validation of expected top-level keys
           const bundle = {
             studentsData: Array.isArray(obj?.studentsData) ? obj.studentsData : [],
@@ -236,6 +295,9 @@ export default {
             parentsData: Array.isArray(obj?.parentsData) ? obj.parentsData : [],
             months: (obj && typeof obj?.months === 'object' && !Array.isArray(obj.months)) ? obj.months : {}
           };
+          if (Object.keys(importedSettings).length) {
+            bundle.appSettings = importedSettings;
+          }
           $oneImpMsg.textContent = 'Importing…'; $oneImpMsg.style.color = '#555';
           await onImportOne(bundle);
           $oneImpMsg.textContent = 'Imported and saved to Drive.'; $oneImpMsg.style.color = '#2a7';
