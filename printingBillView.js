@@ -266,7 +266,36 @@ const printingBillView = {
       const originalPadding = billContainer.style.padding;
       billContainer.style.padding = '20px';
       try {
-        const canvas = await html2canvas(billContainer, { backgroundColor: '#ffffff' });
+        const canvas = await html2canvas(billContainer, {
+          backgroundColor: '#ffffff',
+          onclone(clonedDocument) {
+            const bill = clonedDocument.getElementById('billContainer');
+            bill.style.setProperty('background', '#ffffff', 'important');
+            bill.style.setProperty('color-scheme', 'light', 'important');
+            bill.style.setProperty('forced-color-adjust', 'none', 'important');
+
+            // Edge can rasterize inherited sticky-cell backgrounds as a solid tint.
+            // Give every cell an opaque color in the capture document itself.
+            bill.querySelectorAll('table').forEach(table => {
+              table.style.setProperty('display', 'table', 'important');
+              table.style.setProperty('overflow', 'visible', 'important');
+              table.style.setProperty('background', '#ffffff', 'important');
+              table.querySelectorAll('th').forEach(cell => {
+                cell.style.setProperty('position', 'static', 'important');
+                cell.style.setProperty('background', '#eef2f7', 'important');
+                cell.style.setProperty('box-shadow', 'none', 'important');
+              });
+              table.querySelectorAll('tbody tr').forEach((row, index) => {
+                const color = index % 2 ? '#fbfcfe' : '#ffffff';
+                row.querySelectorAll('td').forEach(cell => {
+                  cell.style.setProperty('position', 'static', 'important');
+                  cell.style.setProperty('background', color, 'important');
+                  cell.style.setProperty('box-shadow', 'none', 'important');
+                });
+              });
+            });
+          }
+        });
         return canvas.toDataURL('image/png');
       } finally {
         billContainer.style.padding = originalPadding;
