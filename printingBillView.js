@@ -259,18 +259,22 @@ const printingBillView = {
     async function renderBillToDataUrl(parentId) {
       const didRender = generateBill(parentId, { skipAlert: true });
       if (!didRender) return null;
+      return captureBillDataUrl();
+    }
+
+    async function captureBillDataUrl() {
       const originalPadding = billContainer.style.padding;
       billContainer.style.padding = '20px';
-      const canvas = await html2canvas(billContainer);
-      billContainer.style.padding = originalPadding || '';
-      return canvas.toDataURL('image/png');
+      try {
+        const canvas = await html2canvas(billContainer, { backgroundColor: '#ffffff' });
+        return canvas.toDataURL('image/png');
+      } finally {
+        billContainer.style.padding = originalPadding;
+      }
     }
 
     printBtn.addEventListener('click', async () => {
-      const originalPadding = billContainer.style.padding;
-      billContainer.style.padding = '20px';
-      const canvas = await html2canvas(billContainer);
-      billContainer.style.padding = originalPadding || '';
+      const dataUrl = await captureBillDataUrl();
       const chosenMonth = parseInt(monthInput.value, 10);
       const chosenYear = parseInt(yearInput.value, 10);
       const mm = String(chosenMonth).padStart(2, '0');
@@ -286,7 +290,7 @@ const printingBillView = {
       const fileName = `${chosenYear}_${mm}_${safeParentName}_bill.png`;
       const link = document.createElement('a');
       link.download = fileName;
-      link.href = canvas.toDataURL('image/png');
+      link.href = dataUrl;
       link.click();
     });
 

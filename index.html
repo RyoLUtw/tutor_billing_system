@@ -404,6 +404,17 @@
       background: var(--surface);
     }
 
+    /* Bill PNGs need opaque cell colors; inherited sticky backgrounds render
+       as tinted blocks in html2canvas. */
+    #billContainer td:first-child {
+      position: static;
+      background: var(--surface);
+    }
+
+    #billContainer tbody tr:nth-child(even) td:first-child {
+      background: #fbfcfe;
+    }
+
     td:last-child,
     th:last-child {
       width: 1%;
