@@ -317,6 +317,7 @@ const daysOffView = {
               const dd = String(d.getDate()).padStart(2, '0');
               result.push({
                 date: `${y}/${m}/${dd}`,
+                profile: scheduleProfiles.values(student),
                 canceled: false,
                 violation: false,
                 makeup: null,

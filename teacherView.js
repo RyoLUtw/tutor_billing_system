@@ -131,11 +131,9 @@ const teacherView = {
 
         let exp = 0, act = 0, ratio = 0;
         if (student) {
-          exp   = student.hourlyRate * student.sessionLength * cntAll
-                  + student.additionalChargeModifier;
-          act   = student.hourlyRate * student.sessionLength * (cntAll - cntCancel + cntMakeup)
-                  + (500 * cntVio)
-                  + student.additionalChargeModifier;
+          const totals = scheduleProfiles.totals(student, schedule);
+          exp = totals.expected;
+          act = totals.actual;
           ratio = exp ? (act / exp) * 100 : 0;
         }
 
@@ -190,11 +188,7 @@ const teacherView = {
           const tv = schedule.filter(i => i.violation).length;
           const tm = schedule.filter(i => i.makeup !== null).length;
 
-          const exp = student.hourlyRate * student.sessionLength * ts
-                    + student.additionalChargeModifier;
-          const act = student.hourlyRate * student.sessionLength * (ts - tc + tm)
-                    + (500 * tv)
-                    + student.additionalChargeModifier;
+          const { expected: exp, actual: act } = scheduleProfiles.totals(student, schedule);
 
           sumExp += exp;
           sumAct += act;

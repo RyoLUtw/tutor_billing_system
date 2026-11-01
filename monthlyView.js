@@ -50,6 +50,8 @@ const monthlyView = {
 
       <div>
         <button id="addScheduledClassBtn">Add New Scheduled Class</button>
+        <button id="generateMissingSchedulesBtn" type="button">Create Missing Schedules</button>
+        <button id="deleteScheduledClassesBtn" type="button">Delete Scheduled Classes</button>
       </div>
 
       <!-- Summary section without temporary modifier input -->
@@ -227,7 +229,8 @@ const monthlyView = {
     function getManagedMonthInfo() {
       const chosenMonth = parseInt(monthInput.value, 10);
       const chosenYear = parseInt(yearInput.value, 10);
-      if (!chosenMonth || !chosenYear) return null;
+      if (!Number.isInteger(chosenMonth) || chosenMonth < 1 || chosenMonth > 12
+          || !Number.isInteger(chosenYear) || chosenYear < 1 || chosenYear > 9999) return null;
       const monthValue = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
       const firstDate = `${monthValue}-01`;
       const lastDay = new Date(chosenYear, chosenMonth, 0).getDate();
@@ -272,6 +275,7 @@ const monthlyView = {
             const dd = String(d.getDate()).padStart(2, '0');
             result.push({
               date: `${y}/${m}/${dd}`,
+              profile: scheduleProfiles.values(student),
               canceled: false,
               violation: false,
               makeup: null,
@@ -285,7 +289,170 @@ const monthlyView = {
       return result;
     }
 
-    // 8) Load or generate schedule for selected student and update UI.
+    // Missing schedules are only generated after explicit confirmation.
+    function confirmMissingSchedules(yearMonth) {
+      const monthMap = monthlySchedulesByMonth[yearMonth] || {};
+      const missing = students.filter(student => !Object.prototype.hasOwnProperty.call(monthMap, student.id));
+      if (!missing.length) return;
+      const dialog = document.createElement('dialog');
+      dialog.setAttribute('aria-labelledby', 'createSchedulesTitle');
+      dialog.style.cssText = 'width:min(90vw,560px);max-height:85vh;overflow:auto;border:1px solid #b9c6d6;border-radius:10px;padding:24px';
+      dialog.innerHTML = `
+        <form method="dialog">
+          <h2 id="createSchedulesTitle">Create missing schedules</h2>
+          <p data-month></p>
+          <p>Select students to create schedules using their current defaults. Existing schedules will be kept.</p>
+          <button type="button" data-toggle>Select / deselect all</button>
+          <fieldset><legend>Students missing schedules</legend><div data-students></div></fieldset>
+          <p data-error role="alert" style="color:#b42318"></p>
+          <button type="submit" data-confirm>Create selected schedules</button>
+          <button type="button" data-cancel>Cancel</button>
+        </form>`;
+      dialog.querySelector('[data-month]').textContent = `Month: ${yearMonth}`;
+      const checkboxes = missing.map(student => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;gap:8px;margin:10px 0';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        label.append(checkbox, student.name + (student.id === students[studentSelect.value]?.id ? ' (selected student)' : ''));
+        dialog.querySelector('[data-students]').appendChild(label);
+        return { student, checkbox };
+      });
+      const toggle = dialog.querySelector('[data-toggle]');
+      const confirm = dialog.querySelector('[data-confirm]');
+      const refresh = () => {
+        toggle.textContent = checkboxes.every(entry => entry.checkbox.checked) ? 'Deselect all' : 'Select all';
+        confirm.disabled = !checkboxes.some(entry => entry.checkbox.checked);
+      };
+      checkboxes.forEach(({ checkbox }) => checkbox.addEventListener('change', refresh));
+      toggle.onclick = () => {
+        const checked = !checkboxes.every(entry => entry.checkbox.checked);
+        checkboxes.forEach(entry => { entry.checkbox.checked = checked; });
+        refresh();
+      };
+      const close = () => { dialog.close(); dialog.remove(); };
+      dialog.querySelector('[data-cancel]').onclick = close;
+      dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+      dialog.querySelector('form').onsubmit = event => {
+        event.preventDefault();
+        const selected = checkboxes.filter(entry => entry.checkbox.checked);
+        if (!selected.length) return;
+        const updatedMap = { ...(monthlySchedulesByMonth[yearMonth] || {}) };
+        selected.forEach(({ student }) => {
+          if (!Object.prototype.hasOwnProperty.call(updatedMap, student.id)) {
+            updatedMap[student.id] = generateSchedule(student, yearMonth);
+          }
+        });
+        const updatedMonths = { ...monthlySchedulesByMonth, [yearMonth]: updatedMap };
+        try {
+          localStorage.setItem('monthlySchedulesByMonth', JSON.stringify(updatedMonths));
+        } catch (error) {
+          dialog.querySelector('[data-error]').textContent = 'Could not save schedules. Please try again.';
+          return;
+        }
+        monthlySchedulesByMonth = updatedMonths;
+        currentSchedule = updatedMap[students[studentSelect.value]?.id] || [];
+        renderTable();
+        recalcCharge();
+        close();
+      };
+      refresh();
+      container.appendChild(dialog);
+      dialog.showModal();
+    }
+
+    container.querySelector('#generateMissingSchedulesBtn').addEventListener('click', () => {
+      const monthInfo = getManagedMonthInfo();
+      if (monthInfo) confirmMissingSchedules(monthInfo.monthValue);
+    });
+
+    function openDeleteScheduledClasses() {
+      const monthInfo = getManagedMonthInfo();
+      const student = students[studentSelect.value];
+      if (!monthInfo || !student) return;
+      const yearMonth = monthInfo.monthValue;
+      const schedule = monthlySchedulesByMonth[yearMonth]?.[student.id] || [];
+      const dialog = document.createElement('dialog');
+      dialog.setAttribute('aria-labelledby', 'deleteClassesTitle');
+      dialog.style.cssText = 'width:min(90vw,620px);max-height:85vh;overflow:auto;border:1px solid #b9c6d6;border-radius:10px;padding:24px';
+      dialog.innerHTML = `
+        <form method="dialog">
+          <h2 id="deleteClassesTitle">Delete scheduled classes</h2>
+          <p data-context></p>
+          <p>Select the classes to remove, then confirm deletion.</p>
+          <button type="button" data-toggle>Select all</button>
+          <fieldset><legend>Existing classes</legend><div data-classes></div></fieldset>
+          <p data-error role="alert" style="color:#b42318"></p>
+          <button type="submit" data-confirm disabled>Delete selected classes</button>
+          <button type="button" data-cancel>Cancel</button>
+        </form>`;
+      dialog.querySelector('[data-context]').textContent = `${student.name} — ${yearMonth}`;
+      const list = dialog.querySelector('[data-classes]');
+      if (!schedule.length) list.textContent = 'No scheduled classes exist for this student in this month.';
+      const checkboxes = schedule.map((item, index) => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;gap:8px;margin:10px 0';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = false;
+        const status = item.canceled ? (item.violation ? 'Canceled (compensated)' : 'Canceled') : 'Scheduled';
+        const makeup = item.makeup ? `; make-up: ${item.makeup.date} ${item.makeup.time || ''}` : '';
+        const adjustment = item['time modified'] ? `; time adjustment: ${item['time modified']} hours` : '';
+        label.append(checkbox, `${item.date} — ${status}${makeup}${adjustment}`);
+        list.appendChild(label);
+        return { index, checkbox };
+      });
+      const toggle = dialog.querySelector('[data-toggle]');
+      const confirm = dialog.querySelector('[data-confirm]');
+      const refresh = () => {
+        const count = checkboxes.filter(entry => entry.checkbox.checked).length;
+        toggle.textContent = count && count === checkboxes.length ? 'Deselect all' : 'Select all';
+        toggle.disabled = !checkboxes.length;
+        confirm.disabled = !count;
+        confirm.textContent = count ? `Delete selected classes (${count})` : 'Delete selected classes';
+      };
+      checkboxes.forEach(({ checkbox }) => checkbox.addEventListener('change', refresh));
+      toggle.onclick = () => {
+        const checked = !checkboxes.every(entry => entry.checkbox.checked);
+        checkboxes.forEach(entry => { entry.checkbox.checked = checked; });
+        refresh();
+      };
+      const close = () => { dialog.close(); dialog.remove(); };
+      dialog.querySelector('[data-cancel]').onclick = close;
+      dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+      dialog.querySelector('form').onsubmit = event => {
+        event.preventDefault();
+        const selected = new Set(checkboxes.filter(entry => entry.checkbox.checked).map(entry => entry.index));
+        if (!selected.size) return;
+        const remaining = schedule.filter((item, index) => !selected.has(index));
+        // Preserve an empty saved schedule so deleted classes are not regenerated.
+        const updatedMonths = { ...monthlySchedulesByMonth,
+          [yearMonth]: { ...monthlySchedulesByMonth[yearMonth], [student.id]: remaining } };
+        try {
+          localStorage.setItem('monthlySchedulesByMonth', JSON.stringify(updatedMonths));
+        } catch (error) {
+          dialog.querySelector('[data-error]').textContent = 'Could not save changes. No classes were deleted. Please try again.';
+          return;
+        }
+        monthlySchedulesByMonth = updatedMonths;
+        currentSchedule = remaining;
+        cancellationPopup.style.display = 'none';
+        timeModifierPopup.style.display = 'none';
+        activeIndex = null;
+        timeModifierIndex = null;
+        renderTable();
+        recalcCharge();
+        close();
+      };
+      refresh();
+      container.appendChild(dialog);
+      dialog.showModal();
+    }
+
+    container.querySelector('#deleteScheduledClassesBtn').addEventListener('click', openDeleteScheduledClasses);
+
+    // 8) Load saved schedules; ask before creating missing schedules.
     function loadOrGenerateSchedule() {
       const selectedIndex = studentSelect.value;
       if (selectedIndex === '') {
@@ -294,29 +461,23 @@ const monthlyView = {
         recalcCharge();
         return;
       }
-      const chosenMonth = parseInt(monthInput.value, 10);
-      const chosenYear = parseInt(yearInput.value, 10);
-      if (!chosenMonth || !chosenYear) {
+      const monthInfo = getManagedMonthInfo();
+      if (!monthInfo) {
         currentSchedule = [];
         renderTable();
         recalcCharge();
         return;
       }
       const student = students[selectedIndex];
-      const yearMonth = `${chosenYear}-${String(chosenMonth).padStart(2, '0')}`;
-      if (!monthlySchedulesByMonth[yearMonth]) {
-        monthlySchedulesByMonth[yearMonth] = {};
-      }
-      if (monthlySchedulesByMonth[yearMonth][student.id]) {
-        currentSchedule = monthlySchedulesByMonth[yearMonth][student.id];
-      } else {
-        currentSchedule = generateSchedule(student, yearMonth);
-        monthlySchedulesByMonth[yearMonth][student.id] = currentSchedule;
-        saveMonthlySchedules();
-      }
+      const yearMonth = monthInfo.monthValue;
+      const monthMap = monthlySchedulesByMonth[yearMonth] || {};
+      const exists = Object.prototype.hasOwnProperty.call(monthMap, student.id);
+      currentSchedule = exists ? monthMap[student.id] : [];
       renderTable();
       recalcCharge();
+      if (!exists) confirmMissingSchedules(yearMonth);
     }
+
 
     // 9) Save schedule to localStorage (old structure unchanged)
     function saveMonthlySchedules() {
@@ -485,6 +646,8 @@ const monthlyView = {
       selectedDatesForNewClasses.forEach(dateValue => {
         currentSchedule.push({
           date: dateInputToScheduleDate(dateValue),
+          profile: scheduleProfiles.values(student),
+          manual: true,
           canceled: false,
           violation: false,
           makeup: null,
@@ -612,19 +775,9 @@ const monthlyView = {
       scheduledCountDisplay.textContent = String(scheduledCount);
       canceledCountDisplay.textContent = String(canceledCount);
       makeupCountDisplay.textContent = String(makeupCount);
-      profileModifierDisplay.textContent = String(student.additionalChargeModifier);
-      let sumEffectiveTime = 0;
-      classes.forEach(item => {
-        if (!item.canceled) {
-          sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
-        }
-      });
-      // Total charge uses effective session time (for non-canceled classes)
-      const totalCharge =
-        (student.hourlyRate * sumEffectiveTime) +
-        (500 * violationCount) +
-        student.additionalChargeModifier;
-      totalChargeDisplay.textContent = String(totalCharge);
+      const totals = scheduleProfiles.totals(student, classes, false);
+      profileModifierDisplay.textContent = String(totals.modifier);
+      totalChargeDisplay.textContent = String(totals.actual);
     }
     updateChargeBtn.addEventListener('click', recalcCharge);
 

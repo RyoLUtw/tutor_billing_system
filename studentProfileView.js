@@ -360,16 +360,161 @@ const studentProfileView = {
         alert('No student selected for update. Please click "Edit" on a student first.');
         return;
       }
-      const s = students[selectedIndex];
-      s.name = nameInput.value;
-      s.classDays = getSelectedDays();
-      s.sessionLength = parseFloat(sessionLengthInput.value) || 0;
-      s.hourlyRate = parseFloat(hourlyRateInput.value) || 0;
-      s.additionalChargeModifier = parseFloat(chargeModifierInput.value) || 0;
-      refreshStudentTable();
-      onDataUpdate(students);
-      clearForm();
+      openScheduleUpdateModal();
     });
+
+    function openScheduleUpdateModal() {
+      const student = students[selectedIndex];
+      const proposed = {
+        name: nameInput.value,
+        classDays: getSelectedDays(),
+        sessionLength: Number(sessionLengthInput.value),
+        hourlyRate: Number(hourlyRateInput.value),
+        additionalChargeModifier: Number(chargeModifierInput.value)
+      };
+      const recorded = Object.values(monthlySchedulesByMonth).flatMap(map => map[student.id] || []);
+      const latest = scheduleProfiles.latest(student, recorded);
+      // Explicit edits take precedence over the latest recorded defaults.
+      const defaults = { ...latest };
+      Object.keys(proposed).forEach(key => {
+        if (JSON.stringify(proposed[key]) !== JSON.stringify(student[key])) defaults[key] = proposed[key];
+      });
+      const dialog = document.createElement('dialog');
+      dialog.id = 'scheduleUpdateDialog';
+      dialog.setAttribute('aria-labelledby', 'scheduleUpdateTitle');
+      dialog.style.cssText = 'width:min(90vw,760px);max-height:85vh;overflow:auto;border:1px solid #b9c6d6;border-radius:10px;padding:24px';
+      dialog.innerHTML = `
+        <form method="dialog">
+          <h2 id="scheduleUpdateTitle">Update student and existing schedules</h2>
+          <div id="newScheduleDefaults"></div>
+          <label>Existing schedules
+            <select id="scheduleUpdateMode">
+              <option value="keep">Keep existing schedules unchanged</option>
+              <option value="all">Change all existing schedules</option>
+              <option value="custom">Custom intervals</option>
+            </select>
+          </label>
+          <p>“Change all” uses the values entered in the student profile form. Custom intervals have independent values.</p>
+          <p>Date ranges are inclusive. Weekday changes rebuild regular classes in saved months; cancellations, make-ups and adjusted classes are retained.</p>
+          <p>Each interval starts with the latest scheduled values plus your profile edits. The monthly charge modifier is applied once, using that month’s latest scheduled date.</p>
+          <div id="scheduleIntervals"></div>
+          <button type="button" id="addScheduleInterval" hidden>+ Add interval</button>
+          <p id="scheduleUpdateError" role="alert" style="color:#b42318"></p>
+          <button type="submit">Confirm update</button>
+          <button type="button" id="cancelScheduleUpdate">Cancel</button>
+        </form>`;
+      container.appendChild(dialog);
+      const mode = dialog.querySelector('#scheduleUpdateMode');
+      const list = dialog.querySelector('#scheduleIntervals');
+      const add = dialog.querySelector('#addScheduleInterval');
+      let sequence = 0;
+      function addInterval(target = list, future = false) {
+        const id = ++sequence;
+        const fieldset = document.createElement('fieldset');
+        fieldset.style.cssText = 'margin:16px 0;padding:16px;display:grid;gap:12px';
+        fieldset.innerHTML = `
+          <legend>${future ? 'Newly created schedules' : `Interval ${id}`}</legend>
+          <label>Start <select data-bound="start"><option value="date">Specific date</option><option value="open">All schedules before end date</option></select>
+            <input type="date" data-date="start" aria-label="Start date" required></label>
+          <label>End <select data-bound="end"><option value="date">Specific date</option><option value="open">All schedules after start date</option></select>
+            <input type="date" data-date="end" aria-label="End date" required></label>
+          <label>Name <input data-field="name" required></label>
+          <div>Class days <div data-days></div></div>
+          <label>Session length (hours) <input data-field="sessionLength" type="number" min="0.1" step="0.1" required></label>
+          <label>Hourly rate <input data-field="hourlyRate" type="number" min="0" step="any" required></label>
+          <label>Additional charge modifier (+/−) <input data-field="additionalChargeModifier" type="number" step="any" required></label>
+          <button type="button" data-remove>Remove interval</button>`;
+        Object.keys(defaults).filter(key => key !== 'classDays').forEach(key => {
+          fieldset.querySelector(`[data-field="${key}"]`).value = defaults[key] ?? '';
+        });
+        scheduleProfiles.days.forEach(day => {
+          const label = document.createElement('label');
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox'; checkbox.value = day;
+          checkbox.checked = (defaults.classDays || []).includes(day);
+          label.append(checkbox, day + ' ');
+          fieldset.querySelector('[data-days]').appendChild(label);
+        });
+        fieldset.querySelectorAll('[data-bound]').forEach(select => {
+          select.addEventListener('change', () => {
+            const input = fieldset.querySelector(`[data-date="${select.dataset.bound}"]`);
+            input.hidden = select.value === 'open';
+            input.disabled = input.hidden;
+          });
+        });
+        fieldset.querySelector('[data-remove]').onclick = () => fieldset.remove();
+        if (future) {
+          fieldset.querySelectorAll('[data-bound], [data-date]').forEach(input => {
+            input.disabled = true;
+            input.closest('label').hidden = true;
+          });
+          fieldset.querySelector('[data-remove]').hidden = true;
+          const hint = document.createElement('p');
+          hint.textContent = 'These become the student profile defaults for all newly created schedules. Existing schedules use the choice below.';
+          fieldset.insertBefore(hint, fieldset.children[1]);
+        }
+        target.appendChild(fieldset);
+      }
+      mode.onchange = () => {
+        list.replaceChildren();
+        add.hidden = mode.value !== 'custom';
+        if (mode.value === 'custom') addInterval();
+      };
+      add.onclick = () => addInterval();
+      addInterval(dialog.querySelector('#newScheduleDefaults'), true);
+      sequence = 0;
+      function readProfile(fieldset) {
+        const profile = {};
+        fieldset.querySelectorAll('[data-field]').forEach(input => {
+          profile[input.dataset.field] = input.type === 'number' ? Number(input.value) : input.value;
+        });
+        profile.classDays = [...fieldset.querySelectorAll('[data-days] input:checked')].map(input => input.value);
+        return profile;
+      }
+      const close = () => { dialog.close(); dialog.remove(); updateStudentBtn.focus(); };
+      dialog.querySelector('#cancelScheduleUpdate').onclick = close;
+      dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+      dialog.querySelector('form').onsubmit = event => {
+        event.preventDefault();
+        const error = dialog.querySelector('#scheduleUpdateError');
+        error.textContent = '';
+        const futureProfile = readProfile(dialog.querySelector('#newScheduleDefaults fieldset'));
+        let intervals = [];
+        if (mode.value === 'all') intervals = [{ start: '', end: '', profile: proposed }];
+        if (mode.value === 'custom') {
+          intervals = [...list.children].map(fieldset => {
+            const bound = side => fieldset.querySelector(`[data-bound="${side}"]`).value === 'open'
+              ? '' : fieldset.querySelector(`[data-date="${side}"]`).value;
+            const profile = readProfile(fieldset);
+            return { start: bound('start'), end: bound('end'), profile };
+          });
+          if (!intervals.length) { error.textContent = 'Add at least one interval.'; return; }
+          if (intervals.some(r => (!r.start && !r.end) || (r.start && r.end && r.start > r.end))) {
+            error.textContent = 'Choose at least one reference date per interval, with start on or before end.'; return;
+          }
+          intervals.sort((a, b) => a.start.localeCompare(b.start));
+          if (intervals.some((r, i) => i && (!intervals[i - 1].end || !r.start || r.start <= intervals[i - 1].end))) {
+            error.textContent = 'Intervals must not overlap, including their boundary dates.'; return;
+          }
+        }
+        if ([futureProfile, ...intervals.map(range => range.profile)].some(profile =>
+          !profile.name.trim() || !Number.isFinite(profile.sessionLength) || profile.sessionLength <= 0
+          || !Number.isFinite(profile.hourlyRate) || profile.hourlyRate < 0 || !Number.isFinite(profile.additionalChargeModifier))) {
+          error.textContent = 'Enter a name, positive session length, non-negative rate and valid modifier in the profile.'; return;
+        }
+        const updatedMonths = scheduleProfiles.apply(monthlySchedulesByMonth, student, intervals);
+        try {
+          localStorage.setItem('monthlySchedulesByMonth', JSON.stringify(updatedMonths));
+        } catch (err) { error.textContent = 'Could not save schedules. Please try again.'; return; }
+        monthlySchedulesByMonth = updatedMonths;
+        Object.assign(student, futureProfile);
+        refreshStudentTable();
+        onDataUpdate(students);
+        clearForm();
+        close();
+      };
+      dialog.showModal();
+    }
 
     downloadJsonBtn.addEventListener('click', () => {
       const backup = { active: students, archived: archivedStudents };

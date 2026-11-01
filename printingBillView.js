@@ -171,7 +171,7 @@ const printingBillView = {
             canceledCount++;
             // If makeup is arranged, even if canceled, we add its effective session time.
             if (item.makeup) {
-              sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
+              sumEffectiveTime += Number(scheduleProfiles.values(student, item).sessionLength) + Number(item["time modified"] || 0);
             }
           } else {
             const mod = item["time modified"] || 0;
@@ -182,7 +182,7 @@ const printingBillView = {
             } else {
               statusTd.textContent = '正常上課';
             }
-            sumEffectiveTime += student.sessionLength + (item["time modified"] || 0);
+            sumEffectiveTime += Number(scheduleProfiles.values(student, item).sessionLength) + Number(item["time modified"] || 0);
           }
 
           row.appendChild(statusTd);
@@ -204,12 +204,7 @@ const printingBillView = {
         const totalScheduled = schedule.length;
         const totalViolation = schedule.filter(i => i.violation).length;
         // Expected charge uses base session time (without modifiers)
-        const expected = (student.hourlyRate * student.sessionLength * totalScheduled)
-          + student.additionalChargeModifier;
-        // Actual charge uses the summed effective session time from non-canceled or makeup sessions
-        const actual = (student.hourlyRate * sumEffectiveTime)
-          + (500 * totalViolation)
-          + student.additionalChargeModifier;
+        const { expected, actual } = scheduleProfiles.totals(student, schedule);
         totalAllChildren += actual;
 
         // Build summary table for this student.
@@ -394,11 +389,12 @@ const printingBillView = {
         const schedule = Array.isArray(scheduleObj) ? scheduleObj : scheduleObj?.classes;
         if (!Array.isArray(schedule)) return;
         const parentNames = getStudentParents(studentId).join(', ');
-        const baseSessionLength = Number(student.sessionLength || 0);
+
         schedule
           .slice()
           .sort((a, b) => scheduleDateToSortable(a.date).localeCompare(scheduleDateToSortable(b.date)))
           .forEach(item => {
+            const baseSessionLength = Number(scheduleProfiles.values(student, item).sessionLength || 0);
             const timeModified = Number(item["time modified"] || 0);
             const effectiveSessionLength = baseSessionLength + timeModified;
             lines.push([
