@@ -42,14 +42,14 @@ const scheduleProfiles = {
         const rebuild = covered.length
           ? covered.some(item => !sameDays(item.profile) || (!isException(item) && !range.profile.classDays.includes(weekdayFor(item))))
           : !sameDays(student);
-        const movedMakeups = [];
+        const movedClasses = [];
         items = items.filter(item => {
           const date = this.date(item.date);
           if (!contains(range, date)) return true;
           const weekday = this.days[new Date(`${date}T12:00:00`).getDay()];
           const keep = isException(item) || !rebuild || range.profile.classDays.includes(weekday);
           item.profile = this.values(range.profile);
-          if (!keep && item.makeup) movedMakeups.push(item);
+          if (!keep) movedClasses.push(item);
           return keep;
         });
         const [year, monthNumber] = month.split('-').map(Number);
@@ -66,21 +66,21 @@ const scheduleProfiles = {
             replacements.push(replacement);
           }
         }
-        // Move the original cancellation record, not its separately arranged make-up date.
-        // Prefer a replacement in the same Monday¡VSunday week, then the nearest available date.
+        // Carry session adjustments and cancellation details onto the replacement date.
+        // Prefer a replacement in the same Mondayâ€“Sunday week, then the nearest available date.
         const timestamp = item => new Date(`${this.date(item.date)}T12:00:00`).getTime();
         const week = item => {
           const date = new Date(timestamp(item));
           date.setDate(date.getDate() - (date.getDay() + 6) % 7);
           return date.getTime();
         };
-        movedMakeups.sort((a, b) => timestamp(a) - timestamp(b)).forEach(original => {
+        movedClasses.sort((a, b) => timestamp(a) - timestamp(b)).forEach(original => {
           replacements.sort((a, b) =>
             Number(week(b) === week(original)) - Number(week(a) === week(original))
             || Math.abs(timestamp(a) - timestamp(original)) - Math.abs(timestamp(b) - timestamp(original)));
           const replacement = replacements.shift();
           if (!replacement) {
-            throw new Error(`No replacement date is available for the class on ${original.date}. Widen the interval or add a class day to keep its make-up arrangement.`);
+            throw new Error(`No replacement date is available for the class on ${original.date}. Widen the interval or add a class day to preserve its class details.`);
           }
           const date = replacement.date;
           Object.assign(replacement, original, { date });

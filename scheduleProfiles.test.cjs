@@ -51,7 +51,9 @@ for (const flags of [
   const profile = { ...changed, classDays: ['Sunday'] };
   const combined = api.apply(input, student, [{ start: '2026-06-20', end: '2026-06-28', profile }]);
   assert.deepEqual(Array.from(combined['2026-06'].s, i => i.date), ['2026/06/13', '2026/06/21', '2026/06/28']);
-  assert.equal(combined['2026-06'].s[1].canceled, false);
+  assert.equal(combined['2026-06'].s[1].canceled, flags.canceled);
+  assert.equal(combined['2026-06'].s[1].violation, flags.violation || false);
+  assert.equal(combined['2026-06'].s[1]['time modified'], flags['time modified'] || 0);
   assert.equal(combined['2026-06'].s[1].makeup, null);
   const split = api.apply(input, student, [
     { start: '2026-06-20', end: '2026-06-21', profile },
@@ -106,3 +108,20 @@ assert.equal(originalAdded.makeup.date, '2026-06-10');
 assert.equal(originalAdded.makeup.time, '15:30');
 assert.equal(addedResult['2026-06'].s.find(session => session.date === '2026/06/08').makeup, null);
 console.log('Cancelled manually added classes and their make-up arrangements stay on their original dates.');
+
+const modifiedMonths = structuredClone(thursdayMonths);
+modifiedMonths['2026-06'].s[0]['time modified'] = 0.5;
+modifiedMonths['2026-06'].s[1]['time modified'] = -0.25;
+const modifiedResult = api.apply(modifiedMonths, thursdayStudent, [mondayRange]);
+assert.equal(modifiedResult['2026-06'].s[0]['time modified'], 0.5);
+assert.equal(modifiedResult['2026-06'].s[1]['time modified'], -0.25);
+assert.equal(modifiedResult['2026-06'].s[0].canceled, true);
+assert.equal(modifiedResult['2026-06'].s[0].violation, true);
+assert.equal(modifiedResult['2026-06'].s[0].makeup.time, '15:30');
+assert.equal(modifiedResult['2026-06'].s[1].canceled, false);
+const termsOnly = api.apply(modifiedMonths, thursdayStudent, [{ ...mondayRange, profile: { ...changed, classDays: ['Thursday'] } }]);
+assert.equal(termsOnly['2026-06'].s[0].date, '2026/06/11');
+assert.equal(termsOnly['2026-06'].s[0]['time modified'], 0.5);
+assert.equal(termsOnly['2026-06'].s[0].canceled, true);
+assert.equal(termsOnly['2026-06'].s[0].profile.hourlyRate, 200);
+console.log('Time adjustments and cancellation details survive weekday and profile-only updates.');

@@ -395,7 +395,7 @@ const studentProfileView = {
             </select>
           </label>
           <p>“Change all” uses the values entered in the student profile form. Custom intervals have independent values.</p>
-          <p>Date ranges are inclusive. Weekday changes reschedule regular classes in the interval, including cancelled and previously cancelled classes. Manually added classes keep their dates and status, even when cancelled with a make-up arrangement. Cancelled regular classes move to the new weekdays while their make-up dates and times stay unchanged. Interval profile values still apply to all covered classes.</p>
+          <p>Date ranges are inclusive. Weekday changes reschedule regular classes in the interval, including cancelled and previously cancelled classes. Manually added classes keep their dates and status, even when cancelled with a make-up arrangement. Regular classes move to the new weekdays with their time adjustments, cancellation status and compensation status preserved. Make-up dates and times stay unchanged. Interval profile values still apply to all covered classes.</p>
           <p>Each interval starts with the latest scheduled values plus your profile edits. The monthly charge modifier is applied once, using that month’s latest scheduled date.</p>
           <div id="scheduleIntervals"></div>
           <button type="button" id="addScheduleInterval" hidden>+ Add interval</button>
