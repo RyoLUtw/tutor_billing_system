@@ -727,6 +727,19 @@
         overflow: visible;
       }
     }
+    #datesTable tr.manually-added-class td { background: #eff6ff; }
+    #datesTable tr.manually-added-class td:first-child { border-left: 4px solid #2563eb; }
+    .added-class-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 2px 7px;
+      border: 1px solid #93c5fd;
+      border-radius: 5px;
+      background: #dbeafe;
+      color: #1e40af;
+      font-size: 0.85em;
+      font-weight: 700;
+    }
     #scheduleUpdateDialog [hidden] { display: none !important; }
     #scheduleUpdateDialog::backdrop { background: rgba(15, 23, 42, 0.45); }
     #scheduleUpdateDialog label { flex-wrap: wrap; gap: 8px; }

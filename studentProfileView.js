@@ -395,7 +395,7 @@ const studentProfileView = {
             </select>
           </label>
           <p>“Change all” uses the values entered in the student profile form. Custom intervals have independent values.</p>
-          <p>Date ranges are inclusive. Weekday changes rebuild regular classes in saved months; cancellations, make-ups and adjusted classes are retained.</p>
+          <p>Date ranges are inclusive. Weekday changes reschedule regular classes in the interval, including cancelled and previously cancelled classes. Manually added classes keep their dates and status, even when cancelled with a make-up arrangement. Cancelled regular classes move to the new weekdays while their make-up dates and times stay unchanged. Interval profile values still apply to all covered classes.</p>
           <p>Each interval starts with the latest scheduled values plus your profile edits. The monthly charge modifier is applied once, using that month’s latest scheduled date.</p>
           <div id="scheduleIntervals"></div>
           <button type="button" id="addScheduleInterval" hidden>+ Add interval</button>
@@ -502,7 +502,13 @@ const studentProfileView = {
           || !Number.isFinite(profile.hourlyRate) || profile.hourlyRate < 0 || !Number.isFinite(profile.additionalChargeModifier))) {
           error.textContent = 'Enter a name, positive session length, non-negative rate and valid modifier in the profile.'; return;
         }
-        const updatedMonths = scheduleProfiles.apply(monthlySchedulesByMonth, student, intervals);
+        let updatedMonths;
+        try {
+          updatedMonths = scheduleProfiles.apply(monthlySchedulesByMonth, student, intervals);
+        } catch (err) {
+          error.textContent = err.message;
+          return;
+        }
         try {
           localStorage.setItem('monthlySchedulesByMonth', JSON.stringify(updatedMonths));
         } catch (err) { error.textContent = 'Could not save schedules. Please try again.'; return; }

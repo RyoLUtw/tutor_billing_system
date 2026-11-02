@@ -399,7 +399,7 @@ const monthlyView = {
         const status = item.canceled ? (item.violation ? 'Canceled (compensated)' : 'Canceled') : 'Scheduled';
         const makeup = item.makeup ? `; make-up: ${item.makeup.date} ${item.makeup.time || ''}` : '';
         const adjustment = item['time modified'] ? `; time adjustment: ${item['time modified']} hours` : '';
-        label.append(checkbox, `${item.date} — ${status}${makeup}${adjustment}`);
+        label.append(checkbox, `${item.date}${item.manual ? ' — Added class' : ''} — ${status}${makeup}${adjustment}`);
         list.appendChild(label);
         return { index, checkbox };
       });
@@ -507,6 +507,13 @@ const monthlyView = {
         // Date
         const dateCell = document.createElement('td');
         dateCell.textContent = item.date;
+        if (item.manual) {
+          row.classList.add('manually-added-class');
+          const badge = document.createElement('span');
+          badge.className = 'added-class-badge';
+          badge.textContent = 'Added class';
+          dateCell.appendChild(badge);
+        }
         row.appendChild(dateCell);
         // Cancellation Status remains as before
         const cancelStatusCell = document.createElement('td');
